@@ -1,1562 +1,1678 @@
-    /*  사이트 https://htmlcoderunner.com/ */
-
+/*  사이트 https://htmlcoderunner.com/ */
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>뜯어쓰는 노트 가계부</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>개인 가계부</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap');
-
     :root {
-      --desk-bg: #D7C4B7;
-      --notepad-top: #5C3D2E;
-      --paper: #FFFDF9;
-      --paper-grid: #EAE5D9;
-      --line: #3A3535;
-      --text: #2D2424;
-      --text-sub: #756868;
-      --accent: #D9534F;
-      --income: #2E7D32;
-      --transfer: #1976D2;
-      --warn: #E65100;
+      --primary: #4f46e5;
+      --primary-light: #e0e7ff;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --expense: #ef4444;
+      --income: #10b981;
+      --border: #e2e8f0;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Noto Sans KR', sans-serif;
-      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     body {
-      background-color: var(--desk-bg);
+      background-color: var(--bg);
+      color: var(--text);
       min-height: 100vh;
       display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 20px 10px 60px;
+      flex-direction: column;
     }
 
-    .notepad-wrapper {
-      position: relative;
+    .app-wrapper {
       width: 100%;
-      max-width: 450px;
-      margin-right: 46px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
     }
 
-    .notepad-binder {
-      height: 38px;
-      background: var(--notepad-top);
-      border-radius: 8px 8px 0 0;
-      position: relative;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
-      border-bottom: 2px solid #3E2723;
-    }
-    .notepad-binder::after {
-      content: "";
-      position: absolute;
-      bottom: -6px;
-      left: 0;
-      right: 0;
-      height: 4px;
-      border-bottom: 2px dashed #BCAAA4;
+    /* 최상단 4대 탭 */
+    .nav-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
       z-index: 10;
     }
 
-    .notepad-page {
-      background-color: var(--paper);
-      background-image: 
-        linear-gradient(var(--paper-grid) 1px, transparent 1px),
-        linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
-      background-size: 20px 20px;
-      min-height: 640px;
-      padding: 20px 16px 70px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-      border-radius: 0 0 4px 4px;
-      position: relative;
-      overflow: hidden;
+    .tab-btn {
+      padding: 7px 0;
+      border: none;
+      background: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease-in-out;
     }
 
-    .index-tabs {
-      position: absolute;
-      top: 44px;
-      right: -42px;
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background-color: #f1f5f9;
+    }
+
+    /* 메인 콘텐츠 */
+    .content-area {
+      flex: 1;
+      padding: 16px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      z-index: 5;
-    }
-    .tab-btn {
-      width: 42px;
-      padding: 9px 3px;
-      background: #EFEBE9;
-      border: 1px solid #D7CCC8;
-      border-left: none;
-      border-radius: 0 8px 8px 0;
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #5D4037;
-      cursor: pointer;
-      writing-mode: vertical-rl;
-      text-orientation: upright;
-      letter-spacing: 2px;
-      box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-      transition: all 0.15s ease;
-    }
-    .tab-btn.active {
-      background: var(--paper);
-      color: #000;
-      width: 48px;
-      font-weight: 900;
-      border-color: #A1887F;
-      box-shadow: 3px 3px 8px rgba(0,0,0,0.15);
     }
 
-    .dog-ear-btn {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      width: 0;
-      height: 0;
-      border-style: solid;
-      border-width: 0 0 65px 65px;
-      border-color: transparent transparent #4E342E transparent;
-      cursor: pointer;
-      z-index: 20;
-      filter: drop-shadow(-3px -3px 4px rgba(0,0,0,0.25));
-    }
-    .dog-ear-btn::after {
-      content: "+추가";
-      position: absolute;
-      bottom: -60px;
-      right: 4px;
-      color: #FFF;
-      font-size: 0.72rem;
-      font-weight: 700;
-      transform: rotate(-45deg);
-      white-space: nowrap;
-    }
+    .tab-view { display: none; flex: 1; }
+    .tab-view.active { display: flex; flex-direction: column; }
 
-    .page-title {
-      font-size: 1.15rem;
-      font-weight: 800;
-      color: var(--text);
-      border-bottom: 2px solid var(--line);
-      padding-bottom: 8px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-    }
-
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    .budget-banner {
-      background: #FDF8E2;
-      border: 1px dashed #D4A373;
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 12px;
-    }
-    .budget-header-row {
+    /* 1번 탭: 달력 */
+    .cal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 6px;
-    }
-    .budget-toggle-btn {
-      background: none;
-      border: 1px solid #BCAAA4;
-      font-size: 0.68rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      cursor: pointer;
-      color: var(--text-sub);
-    }
-    .budget-toggle-btn.active {
-      background: var(--notepad-top);
-      color: white;
-      border-color: var(--notepad-top);
-      font-weight: bold;
-    }
-    .budget-info { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 700; margin-bottom: 5px; }
-    .budget-bar { height: 7px; background: #E9DCC9; border-radius: 4px; overflow: hidden; }
-    .budget-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
-    .diff-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 700;
-      margin-top: 4px;
+      margin-bottom: 12px;
+      padding: 4px 8px;
     }
 
-    .filter-wrap { display: flex; gap: 6px; margin-bottom: 8px; }
-    .chip {
-      padding: 4px 8px;
-      font-size: 0.72rem;
-      border-radius: 12px;
-      border: 1px solid #BCAAA4;
-      background: white;
-      color: var(--text-sub);
+    .cal-header h2 { font-size: 1.15rem; font-weight: 700; }
+
+    .cal-nav-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-weight: 700;
       cursor: pointer;
     }
-    .chip.active { background: var(--text); color: white; border-color: var(--text); font-weight: bold; }
+
+    .calendar-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+
+    .day-header {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 6px 0;
+    }
+
+    .day-header.sun { color: var(--expense); }
+    .day-header.sat { color: var(--primary); }
+
+    .cal-cell {
+      min-height: 80px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .cal-cell:hover { background: var(--primary-light); }
+    .cal-cell.other-month { opacity: 0.3; background: #f8fafc; cursor: default; }
+
+    .cal-cell .date-num { font-size: 0.8rem; font-weight: 600; }
+    .cal-cell.sun .date-num { color: var(--expense); }
+    .cal-cell.sat .date-num { color: var(--primary); }
+    .cal-cell.today { border: 2px solid var(--primary); }
+
+    .cal-cell .cell-amounts {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .cell-exp { color: var(--expense); }
+    .cell-inc { color: var(--income); }
+
+    .footnote-summary {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+      padding-right: 4px;
+    }
+
+    .footnote-summary span strong { color: var(--expense); font-weight: 700; }
+
+    /* 3번 탭: 관리 서브 네비게이션 */
+    .manage-nav-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .manage-sub-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 0;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .manage-sub-card:hover { border-color: var(--primary); color: var(--primary); }
+    .manage-sub-card.active {
+      border-color: var(--primary);
+      background-color: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .manage-view-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      flex: 1;
+    }
+
+    .manage-page { display: none; }
+    .manage-page.active { display: block; }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .page-header h3 { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+
+    .tag-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+      min-height: 40px;
+    }
+
+    .rounded-tag {
+      background: #f1f5f9;
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .rounded-tag button { background: none; border: none; color: #94a3b8; font-size: 0.75rem; cursor: pointer; }
+    .rounded-tag button:hover { color: var(--expense); }
+
+    /* 고정 지출 리스트 & 폼 */
+    .fixed-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .fixed-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #f1f5f9;
+      font-size: 0.85rem;
+    }
+
+    .fixed-item-left { display: flex; flex-direction: column; gap: 2px; }
+    .fixed-item-top { display: flex; align-items: center; gap: 6px; }
+    .fixed-item-memo { font-size: 0.75rem; color: var(--text-muted); margin-left: 2px; }
+    
+    .fixed-day-badge {
+      font-size: 0.7rem;
+      background: #e2e8f0;
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .fixed-form-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .fixed-form-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* 머니 포켓 */
+    .pocket-section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin: 18px 0 8px 0;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .pocket-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .pocket-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pocket-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; }
+    .pocket-route { color: var(--primary); background: var(--primary-light); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    .pocket-numbers { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); }
+    .pocket-numbers strong { color: var(--text); }
+    .pocket-progress-bg { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 2px; }
+    .pocket-progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+
+    .inline-add-box {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .inline-add-box input, .inline-add-box select, .fixed-form-row input, .fixed-form-row select {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      outline: none;
+      background: white;
+    }
+
+    .inline-add-box input:focus, .inline-add-box select:focus, .fixed-form-row input:focus, .fixed-form-row select:focus { border-color: var(--primary); }
+
+    .inline-add-box button, .fixed-form-row button {
+      padding: 8px 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* 모달 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-box {
+      width: 90%;
+      max-width: 420px;
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .modal-header h3 { font-size: 1rem; font-weight: 700; }
+    .btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); }
+
+    .modal-list-container { flex: 1; overflow-y: auto; max-height: 320px; margin-bottom: 12px; }
 
     .tx-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 4px;
-      border-bottom: 1px dashed #C7BEB3;
+      padding: 10px 8px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.85rem;
+      border-radius: 6px;
       cursor: pointer;
       transition: background 0.15s;
     }
-    .tx-item:hover { background: rgba(0,0,0,0.02); }
-    .tx-title { font-weight: 700; font-size: 0.9rem; }
-    .tx-sub { font-size: 0.72rem; color: var(--text-sub); margin-top: 2px; }
-    .tx-amount { font-weight: 800; font-size: 0.95rem; text-align: right; }
-    .tx-expense { color: var(--accent); }
-    .tx-income { color: var(--income); }
-    .tx-transfer { color: var(--transfer); }
 
-    .card-box {
-      background: rgba(255, 255, 255, 0.85);
-      border: 1px solid #D7CCC8;
+    .tx-item:hover { background: #f8fafc; }
+    .tx-item:last-child { border-bottom: none; }
+    .tx-item-left { display: flex; flex-direction: column; gap: 2px; flex: 1; padding-right: 8px; }
+    .tx-memo { font-weight: 600; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+    .tx-tags { display: flex; flex-wrap: wrap; gap: 4px; font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+    .tx-tag { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+    .tx-tag.pocket { background: #e0e7ff; color: var(--primary); font-weight: 600; }
+    
+    .tx-item-right { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .tx-val { font-weight: 700; }
+    .tx-val.exp { color: var(--expense); }
+    .tx-val.inc { color: var(--income); }
+
+    .btn-del { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; font-size: 0.85rem; }
+    .btn-del:hover { color: var(--expense); }
+
+    .btn-show-form {
+      width: 100%;
+      background: #f1f5f9;
+      color: var(--primary);
+      border: 1px dashed var(--primary);
+      padding: 10px;
       border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
     }
-    .card-title { font-size: 0.9rem; font-weight: 700; }
-    .card-amount { font-size: 1.15rem; font-weight: 800; margin: 4px 0; }
-    .card-detail { font-size: 0.75rem; color: var(--text-sub); }
 
-    .pocket-box {
-      background: #F0F4F8;
-      border: 1px dashed var(--transfer);
+    .modal-form-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 6px; }
+
+    .type-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+    .type-toggle button {
+      flex: 1;
+      padding: 7px;
+      border: 1px solid var(--border);
+      background: var(--bg);
       border-radius: 6px;
-      padding: 8px;
-      margin-top: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--text-muted);
     }
-    .pocket-header { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; color: var(--transfer); margin-bottom: 4px; }
-    .pocket-progress { width: 100%; height: 5px; background: #D9E2EC; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
-    .pocket-progress-fill { height: 100%; background: var(--transfer); }
-    .pocket-tx-item { font-size: 0.7rem; color: var(--text-sub); display: flex; justify-content: space-between; padding: 2px 0; border-top: 1px dotted #D0DBE5; }
+    .type-toggle button.active-expense { background: var(--expense); color: white; border-color: var(--expense); }
+    .type-toggle button.active-income { background: var(--income); color: white; border-color: var(--income); }
 
-    .cat-item-clickable {
+    .form-group { margin-bottom: 8px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .form-row.single { grid-template-columns: 1fr; }
+
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+      background-color: white;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+
+    .auto-expand-memo {
+      min-height: 38px;
+      max-height: 100px;
+      line-height: 1.4;
+      overflow-y: hidden;
+      resize: none;
+      display: block;
+    }
+
+    .custom-select-wrap { position: relative; }
+
+    .btn-select-trigger {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background-color: white;
+      text-align: left;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 7px 6px;
-      border-radius: 4px;
-      border-bottom: 1px dotted #D7CCC8;
-      transition: all 0.15s;
+      cursor: pointer;
     }
 
-    /* 커스텀 드롭다운 스타일 */
-    .custom-select-wrap { position: relative; width: 100%; border: 1px solid #BCAAA4; border-radius: 4px; background: #FFF; }
-    .select-header { padding: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-    .selected-display { font-size: 0.85rem; font-weight: 700; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    
-    .cat-dropdown-panel { 
-      display: none; 
-      position: absolute; 
-      top: 100%; 
-      left: 0; 
-      width: 100%; 
-      background: white; 
-      border: 1px solid #BCAAA4; 
-      z-index: 100; 
-      max-height: 200px; 
-      overflow-y: scroll; 
-      overflow-x: hidden; 
-      border-radius: 0 0 4px 4px; 
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15); 
-      scrollbar-width: none; 
-      -ms-overflow-style: none; 
-    }
-    .cat-dropdown-panel::-webkit-scrollbar { display: none; }
-    
-    .cat-add-row { 
-      display: flex; 
-      padding: 6px 8px; 
-      border-bottom: 2px solid #D7CCC8; 
-      background: #FAF7F2; 
-      gap: 6px; 
-      align-items: center; 
-    }
-    .cat-add-input { 
-      flex: 1; 
-      padding: 6px; 
-      border: 1px solid #BCAAA4; 
-      border-radius: 4px; 
-      font-size: 0.85rem; 
-      outline: none; 
-      background: #FFF; 
-      min-width: 0;
-    }
-    .cat-add-input::placeholder { color: #A09890; font-style: italic; }
-    .btn-cat-add { 
-      padding: 6px 12px; 
-      font-size: 0.78rem; 
-      font-weight: 700; 
-      background: var(--notepad-top); 
-      color: white; 
-      border: none; 
-      border-radius: 4px; 
-      cursor: pointer; 
-      white-space: nowrap; 
-    }
-    .btn-cat-add:hover { background: #3E2723; }
-    
-    .cat-item { padding: 9px 10px; cursor: pointer; border-bottom: 1px solid #F0ECE6; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cat-item:hover { background: #F5EFEB; }
+    .select-arrow { font-size: 0.75rem; color: var(--text-muted); pointer-events: none; }
 
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-      padding: 16px;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-box {
-      background: var(--paper);
+    .custom-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
       width: 100%;
-      max-width: 390px;
-      padding: 18px;
-      border-radius: 6px;
-      border: 2px solid #5C3D2E;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-    .form-group { margin-bottom: 9px; }
-    .form-label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 3px; }
-    .form-input {
-      width: 100%;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 200;
+      margin-top: 4px;
       padding: 8px;
-      border: 1px solid #BCAAA4;
-      background: #FFF;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      outline: none;
     }
-    .btn-submit {
-      width: 100%;
-      padding: 10px;
-      background: var(--notepad-top);
+
+    .dropdown-add-row {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dropdown-add-row input {
+      flex: 1;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    .dropdown-add-row button {
+      padding: 6px 10px;
+      background: var(--primary);
       color: white;
       border: none;
       border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .dropdown-list-box {
+      max-height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .dropdown-item {
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .dropdown-item:hover { background: var(--primary-light); }
+    .btn-item-del { background: none; border: none; color: #94a3b8; font-size: 0.75rem; cursor: pointer; }
+    .btn-item-del:hover { color: var(--expense); }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 11px;
+      border-radius: 6px;
+      font-size: 0.9rem;
       font-weight: 700;
       cursor: pointer;
-      margin-top: 6px;
-      font-size: 0.9rem;
+      margin-top: 4px;
     }
+
+    .simple-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <div class="notepad-wrapper">
-    <div class="notepad-binder"></div>
+  <div class="app-wrapper">
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('calendarTab', this)">1. 달력</button>
+      <button class="tab-btn" onclick="switchTab('statsTab', this)">2. 돈 사용 상태</button>
+      <button class="tab-btn" onclick="switchTab('manageTab', this)">3. 관리</button>
+      <button class="tab-btn" onclick="switchTab('settingsTab', this)">4. 환경설정</button>
+    </nav>
 
-    <div class="index-tabs">
-      <button class="tab-btn active" onclick="switchTab(1)">입출금</button>
-      <button class="tab-btn" onclick="switchTab(2)">기간별</button>
-      <button class="tab-btn" onclick="switchTab(3)">카테고리</button>
-      <button class="tab-btn" onclick="switchTab(4)">카드별</button>
-      <button class="tab-btn" onclick="switchTab(5)">설정</button>
-    </div>
-
-    <div class="notepad-page">
+    <main class="content-area">
       
-      <!-- 탭 1: 입·출금 내역 -->
-      <div id="tab1" class="tab-content active">
-        <div class="page-title">
-          <span>① 입·출금 내역</span>
-          <span style="font-size:0.75rem; color:var(--text-sub);" id="quickTotalExp">지출: 0원</span>
+      <section id="calendarTab" class="tab-view active">
+        <div class="cal-header">
+          <button class="cal-nav-btn" id="prevBtn">&lt;</button>
+          <h2 id="monthTitle">2026. 08</h2>
+          <button class="cal-nav-btn" id="nextBtn">&gt;</button>
         </div>
 
-        <div class="budget-banner" id="budgetBanner">
-          <div class="budget-header-row">
-            <span style="font-size:0.75rem; font-weight:800; color:var(--notepad-top);" id="budgetBannerTitle">📊 이번 달 목표 예산</span>
-            <div>
-              <button class="budget-toggle-btn active" id="btnMainBudgetMonth" onclick="switchMainBudgetMode('month')">달별</button>
-              <button class="budget-toggle-btn" id="btnMainBudgetWeek" onclick="switchMainBudgetMode('week')">주별</button>
+        <div class="calendar-container">
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="footnote-summary">
+          <span>* 이번주 사용 금액: <strong id="weekText">0원</strong></span>
+          <span>* 이번달 사용 금액: <strong id="monthText">0원</strong></span>
+        </div>
+      </section>
+
+      <section id="statsTab" class="tab-view">
+        <div class="simple-card">
+          <h3 style="margin-bottom: 8px; color: var(--text);">2. 돈 사용 상태</h3>
+          <p style="margin-bottom: 4px;">이번 달 수입: <strong style="color:var(--income);" id="statIncome">0원</strong></p>
+          <p style="margin-bottom: 4px;">이번 달 지출: <strong style="color:var(--expense);" id="statExpense">0원</strong></p>
+          <hr style="border:0; border-top:1px solid var(--border); margin:8px 0;" />
+          <p>순수 잔액: <strong id="statNet">0원</strong></p>
+        </div>
+      </section>
+
+      <section id="manageTab" class="tab-view">
+        <div class="manage-nav-bar">
+          <div class="manage-sub-card active" onclick="switchManagePage('pageFixed', this)">고정지출</div>
+          <div class="manage-sub-card" onclick="switchManagePage('pageCard', this)">카드</div>
+          <div class="manage-sub-card" onclick="switchManagePage('pageCategory', this)">카테고리</div>
+        </div>
+
+        <div class="manage-view-container">
+          
+          <div class="manage-page active" id="pageFixed">
+            <div class="page-header">
+              <h3>고정지출</h3>
+              <strong style="color: var(--expense); font-size: 0.95rem;" id="fixedTotalSum">월 0원</strong>
+            </div>
+
+            <div class="fixed-list" id="manageFixedList"></div>
+
+            <div class="fixed-form-box">
+              <div class="fixed-form-row">
+                <input type="text" id="addFixedDesc" placeholder="항목명 (예: 월세, 넷플릭스)" />
+                <input type="number" id="addFixedAmount" placeholder="금액 (원)" style="max-width: 110px;" inputmode="numeric" />
+                <select id="addFixedDay" style="max-width: 90px;">
+                  <option value="1">1일</option>
+                  <option value="5">5일</option>
+                  <option value="10">10일</option>
+                  <option value="15">15일</option>
+                  <option value="20">20일</option>
+                  <option value="25">25일</option>
+                  <option value="말일">말일</option>
+                </select>
+              </div>
+              <div class="fixed-form-row">
+                <input type="text" id="addFixedMemo" placeholder="메모 (예: 4인 파티 분할, 자동이체 계좌 등)" />
+                <button type="button" id="btnAddFixed">추가</button>
+              </div>
             </div>
           </div>
-          <div class="budget-info">
-            <span id="budgetLabel">잔여: 0원 / 0원</span>
-            <span id="budgetPercent">0% 사용</span>
-          </div>
-          <div class="budget-bar"><div class="budget-fill" id="budgetFill"></div></div>
-          <div id="compareBadge" class="diff-badge" style="background:#E2E8F0; color:#475569;">전월 비교 분석 중...</div>
-        </div>
 
-        <div style="margin-bottom:8px;">
-          <input type="text" id="searchInput" class="form-input" placeholder="🔍 사용처 검색 (예: 스타벅스, 편의점)..." oninput="renderTxList()">
-        </div>
-
-        <div class="filter-wrap">
-          <button class="chip active" onclick="filterChip('ALL', this)">전체</button>
-          <button class="chip" onclick="filterChip('EXPENSE', this)">지출</button>
-          <button class="chip" onclick="filterChip('INCOME', this)">입금</button>
-          <button class="chip" onclick="filterChip('TRANSFER', this)">이체</button>
-        </div>
-
-        <div id="txList"></div>
-      </div>
-
-      <!-- 탭 2: 기간별 사용내역 -->
-      <div id="tab2" class="tab-content">
-        <div class="page-title">
-          <span>② 기간별 지출 현황</span>
-        </div>
-        <div style="display:flex; gap:6px; margin-bottom:10px;">
-          <button type="button" class="btn-submit" id="btnPeriodMonth" style="margin-top:0; padding:6px; font-size:0.75rem; flex:1;" onclick="setPeriodView('month')">달별(월별) 보기</button>
-          <button type="button" class="btn-submit" id="btnPeriodWeek" style="margin-top:0; padding:6px; font-size:0.75rem; flex:1; background:#BCAAA4;" onclick="setPeriodView('week')">주별 보기</button>
-        </div>
-
-        <div style="margin-bottom:10px;">
-          <input type="month" id="monthPicker" class="form-input" onchange="renderPeriodStats()">
-          <div id="weekPickerGroup" style="display:none; gap:6px;">
-            <input type="month" id="weekMonthPicker" class="form-input" style="flex:1;" onchange="updateWeekOptions(); renderPeriodStats();">
-            <select id="weekIndexSelect" class="form-input" style="flex:1;" onchange="renderPeriodStats()"></select>
-          </div>
-        </div>
-
-        <div class="card-box">
-          <div class="card-title" id="periodBoxTitle">선택 기간 지출 총합</div>
-          <div style="font-size:0.72rem; color:var(--text-sub); margin-top:2px;" id="periodDateRange"></div>
-          <div class="card-amount tx-expense" id="periodTotalSpent">0원</div>
-        </div>
-        <div id="periodTxList"></div>
-      </div>
-
-      <!-- 탭 3: 카테고리 소비분석 (상세 내역 제거 완료) -->
-      <div id="tab3" class="tab-content">
-        <div class="page-title">
-          <span>③ 카테고리 소비분석</span>
-        </div>
-        <div style="height: 180px; position:relative; margin-bottom: 14px;">
-          <canvas id="categoryChart"></canvas>
-        </div>
-        <div style="font-size:0.75rem; font-weight:700; color:var(--text-sub); margin-bottom:6px;">
-          <span>분류별 지출 요약</span>
-        </div>
-        <div id="categoryBreakdown"></div>
-      </div>
-
-      <!-- 탭 4: 카드별 관리 -->
-      <div id="tab4" class="tab-content">
-        <div class="page-title">
-          <span>④ 보유 카드 / 이체 관리</span>
-        </div>
-        <div style="display:flex; gap:6px; margin-bottom:10px;">
-          <button class="btn-submit" style="margin-top:0; padding:7px; font-size:0.75rem; flex:1;" onclick="openTransferModal()">💳 카드간 이체</button>
-          <button class="btn-submit" style="margin-top:0; padding:7px; font-size:0.75rem; flex:1; background:#795548;" onclick="openCardAddModal()">+ 카드 등록</button>
-        </div>
-        <div id="cardList"></div>
-      </div>
-
-      <!-- 탭 5: 환경설정 -->
-      <div id="tab5" class="tab-content">
-        <div class="page-title">
-          <span>⑤ 환경 설정</span>
-        </div>
-        
-        <div class="card-box" style="cursor:pointer; background:#FDF8E2; border:1px solid #D4A373;" onclick="openBudgetModal()">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div class="card-title" style="color:#5C3D2E;">🎯 목표 예산 설정 및 관리</div>
-              <div style="font-size:0.72rem; color:var(--text-sub); margin-top:3px;">달별 / 주별(1~5주) 예산 금액을 입력하고 관리합니다.</div>
+          <div class="manage-page" id="pageCard">
+            <div class="page-header">
+              <h3>카드 목록</h3>
             </div>
-            <span style="font-size:1.1rem;">❯</span>
-          </div>
-        </div>
 
-        <div class="card-box">
-          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>매월 고정 지출</span>
-            <button class="btn-submit" style="margin-top:0; width:auto; padding:4px 8px; font-size:0.7rem; background:#4E342E;" onclick="openRecurringModal()">+ 고정등록</button>
-          </div>
-          <p style="font-size:0.72rem; color:var(--text-sub); margin:4px 0 8px;">구독료, 통신비, 월세 등을 한번에 반영합니다.</p>
-          <div id="recurringList"></div>
-          <button class="btn-submit" style="background:#2E7D32; font-size:0.8rem; padding:8px;" onclick="applyRecurringThisMonth()">📅 이번 달 고정지출 일괄 반영하기</button>
-        </div>
+            <div class="tag-container" id="manageCardList"></div>
 
-        <div class="card-box" style="margin-top:12px;">
-          <div class="card-title">데이터 초기화</div>
-          <button class="btn-submit" style="background:var(--accent); margin-top:6px; padding:8px; font-size:0.8rem;" onclick="resetAllData()">전체 데이터 초기화</button>
-        </div>
-      </div>
-
-      <div class="dog-ear-btn" onclick="openAddModal()"></div>
-
-    </div>
-  </div>
-
-  <!-- 모달 1: 목표 예산 상세 설정 -->
-  <div class="modal-overlay" id="budgetModal">
-    <div class="modal-box">
-      <div class="page-title" style="font-size:1.05rem; margin-bottom:10px;">
-        <span>🎯 목표 예산 설정</span>
-        <button onclick="closeModal('budgetModal')" style="background:none; border:none; font-size:1.1rem; cursor:pointer;">✕</button>
-      </div>
-
-      <div style="display:flex; gap:6px; margin-bottom:12px;">
-        <button type="button" class="btn-submit" id="btnBudgetTabMonth" style="margin-top:0; padding:6px; font-size:0.75rem; flex:1;" onclick="setBudgetModalTab('month')">달별(월) 예산</button>
-        <button type="button" class="btn-submit" id="btnBudgetTabWeek" style="margin-top:0; padding:6px; font-size:0.75rem; flex:1; background:#BCAAA4;" onclick="setBudgetModalTab('week')">주별(주차) 예산</button>
-      </div>
-
-      <div id="budgetMonthForm">
-        <div class="form-group">
-          <label class="form-label">대상 월 선택</label>
-          <input type="month" id="modalMonthSelect" class="form-input" onchange="loadBudgetInputForMonth()">
-        </div>
-        <div class="form-group">
-          <label class="form-label">목표 예산 금액 (원)</label>
-          <input type="number" id="modalMonthAmount" class="form-input" placeholder="예: 600000">
-        </div>
-        <button class="btn-submit" onclick="saveMonthBudgetFromModal()">월 예산 저장</button>
-        
-        <div style="font-size:0.75rem; font-weight:700; color:var(--text); margin:14px 0 6px;">📅 월별 설정 기록 & 달성 여부</div>
-        <div id="modalMonthHistoryList"></div>
-      </div>
-
-      <div id="budgetWeekForm" style="display:none;">
-        <div class="form-group">
-          <label class="form-label">대상 월 및 주차 선택</label>
-          <div style="display:flex; gap:6px;">
-            <input type="month" id="modalWeekMonthSelect" class="form-input" style="flex:1;" onchange="updateModalWeekOptions(); loadBudgetInputForWeek();">
-            <select id="modalWeekIndexSelect" class="form-input" style="flex:1;" onchange="loadBudgetInputForWeek()"></select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">목표 예산 금액 (원)</label>
-          <input type="number" id="modalWeekAmount" class="form-input" placeholder="예: 150000">
-        </div>
-        <button class="btn-submit" onclick="saveWeekBudgetFromModal()">주별 예산 저장</button>
-        
-        <div style="font-size:0.75rem; font-weight:700; color:var(--text); margin:14px 0 6px;">📆 주별 설정 기록 & 달성 여부</div>
-        <div id="modalWeekHistoryList"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 모달 2: 내역 추가 -->
-  <div class="modal-overlay" id="addModal">
-    <div class="modal-box">
-      <div class="page-title" style="font-size:1.05rem; margin-bottom:8px;">내역 추가하기</div>
-      <div class="form-group">
-        <label class="form-label">구분</label>
-        <div style="display:flex; gap:6px;">
-          <button type="button" class="btn-submit" id="typeExp" style="margin-top:0; background:var(--accent);" onclick="setType('EXPENSE')">지출</button>
-          <button type="button" class="btn-submit" id="typeInc" style="margin-top:0; background:#8D6E63;" onclick="setType('INCOME')">입금</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">날짜</label>
-        <input type="date" id="txDate" class="form-input">
-      </div>
-      <div class="form-group">
-        <label class="form-label">결제 카드 선택</label>
-        <select id="txCard" class="form-input" onchange="updateFundSourceOptions()"></select>
-      </div>
-      <div class="form-group" id="fundSourceGroup">
-        <label class="form-label">결제 재원</label>
-        <select id="fundSource" class="form-input"></select>
-      </div>
-      
-      <!-- 커스텀 카테고리 선택 UI -->
-      <div class="form-group">
-        <label class="form-label">카테고리</label>
-        <div class="custom-select-wrap">
-          <div class="select-header" onclick="toggleCatDropdown()">
-            <span id="selectedCategoryDisplay" class="selected-display"></span>
-            <span style="color:var(--text-sub); font-size:0.8rem; margin-left: 6px;">▼</span>
-          </div>
-          <div id="catDropdownPanel" class="cat-dropdown-panel" onclick="event.stopPropagation()">
-            <div class="cat-add-row">
-              <input type="text" id="newCategoryInput" class="cat-add-input" placeholder="카테고리 추가">
-              <button type="button" class="btn-cat-add" onclick="addNewCategoryFromDropdown()">추가</button>
+            <div class="inline-add-box">
+              <input type="text" id="addCardInput" placeholder="새 카드 이름 (예: 신한체크, 토스)" />
+              <button type="button" id="btnAddCardItem">추가</button>
             </div>
-            <div id="catItemsList"></div>
+
+            <div class="pocket-section-title">
+              <span>📦 카드 이동금 잔여 현황판</span>
+            </div>
+
+            <div class="pocket-list" id="pocketListContainer"></div>
+
+            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-top: 8px;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">+ 새 금액 이동 등록</span>
+              <div class="inline-add-box" style="margin-top: 0; padding-top: 0; border-top: none;">
+                <select id="pocketFromCard" style="max-width: 110px;"></select>
+                <span style="align-self: center; font-size: 0.8rem;">➔</span>
+                <select id="pocketToCard" style="max-width: 110px;"></select>
+                <input type="number" id="pocketAmount" placeholder="이동 금액" inputmode="numeric" />
+                <button type="button" id="btnCreatePocket">이동</button>
+              </div>
+            </div>
           </div>
+
+          <div class="manage-page" id="pageCategory">
+            <div class="page-header">
+              <h3>카테고리 목록</h3>
+            </div>
+
+            <div class="tag-container" id="manageCatList"></div>
+
+            <div class="inline-add-box">
+              <input type="text" id="addCatInput" placeholder="새 카테고리 이름" />
+              <button type="button" id="btnAddCatItem">추가</button>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="settingsTab" class="tab-view">
+        <div class="simple-card">
+          <h3 style="margin-bottom: 8px; color: var(--text);">4. 데이터 관리</h3>
+          <button type="button" id="btnClearAll" style="background:var(--expense); color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:700; cursor:pointer;">
+            전체 데이터 초기화
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <div id="dayModal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 id="modalDateTitle">2026-08-30 내역</h3>
+          <button class="btn-close" id="btnCloseModal">✕</button>
+        </div>
+
+        <div class="modal-list-container">
+          <div id="modalTxItems"></div>
+        </div>
+
+        <button type="button" class="btn-show-form" id="btnOpenForm">+ 내용 추가</button>
+
+        <div class="modal-form-section hidden" id="formSection">
+          <div class="type-toggle">
+            <button type="button" id="typeExpBtn" class="active-expense">지출</button>
+            <button type="button" id="typeIncBtn">수입</button>
+          </div>
+
+          <div class="form-group">
+            <input type="number" id="amountInput" placeholder="금액 (원)" inputmode="numeric" />
+          </div>
+
+          <div class="form-row form-group" id="selectRow">
+            <div class="custom-select-wrap" id="catWrap">
+              <button type="button" class="btn-select-trigger" id="btnCatTrigger">
+                <span id="selectedCatLabel">식비</span>
+                <span class="select-arrow">▾</span>
+              </button>
+              <div class="custom-dropdown hidden" id="catDropdown">
+                <div class="dropdown-add-row">
+                  <input type="text" id="newCatInput" placeholder="새 카테고리" />
+                  <button type="button" id="btnAddCat">추가</button>
+                </div>
+                <div class="dropdown-list-box" id="catListBox"></div>
+              </div>
+            </div>
+
+            <div class="custom-select-wrap" id="cardWrap">
+              <button type="button" class="btn-select-trigger" id="btnCardTrigger">
+                <span id="selectedCardLabel">체크카드</span>
+                <span class="select-arrow">▾</span>
+              </button>
+              <div class="custom-dropdown hidden" id="cardDropdown">
+                <div class="dropdown-list-box" id="cardListBox"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <textarea id="memoInput" class="auto-expand-memo" rows="1" placeholder="사용처 및 메모"></textarea>
+          </div>
+
+          <button class="btn-submit" id="btnSaveTx">저장</button>
         </div>
       </div>
-
-      <div class="form-group">
-        <label class="form-label">사용처</label>
-        <input type="text" id="txTitle" class="form-input" placeholder="예: 스타벅스, 식당">
-      </div>
-      <div class="form-group">
-        <label class="form-label">금액</label>
-        <input type="number" id="txAmount" class="form-input" placeholder="0">
-      </div>
-      <button class="btn-submit" onclick="saveTransaction()">저장하기</button>
-      <button class="btn-submit" style="background:#BCAAA4; margin-top:6px;" onclick="closeModal('addModal')">닫기</button>
     </div>
-  </div>
 
-  <!-- 모달 3: 내역 수정/삭제 -->
-  <div class="modal-overlay" id="editModal">
-    <div class="modal-box">
-      <div class="page-title" style="font-size:1.05rem; margin-bottom:8px;">
-        <span>내역 수정</span>
-        <button onclick="deleteCurrentTx()" style="background:none; border:none; color:var(--accent); font-weight:bold; font-size:0.8rem; cursor:pointer;">🗑️ 삭제</button>
-      </div>
-      <input type="hidden" id="editTxId">
-      <div class="form-group">
-        <label class="form-label">날짜</label>
-        <input type="date" id="editTxDate" class="form-input">
-      </div>
-      <div class="form-group">
-        <label class="form-label">카테고리</label>
-        <select id="editTxCategory" class="form-input"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">사용처</label>
-        <input type="text" id="editTxTitle" class="form-input">
-      </div>
-      <div class="form-group">
-        <label class="form-label">금액</label>
-        <input type="number" id="editTxAmount" class="form-input">
-      </div>
-      <button class="btn-submit" onclick="updateTransaction()">수정 완료</button>
-      <button class="btn-submit" style="background:#BCAAA4; margin-top:6px;" onclick="closeModal('editModal')">닫기</button>
-    </div>
-  </div>
-
-  <!-- 모달 4: 고정지출 등록 -->
-  <div class="modal-overlay" id="recurringModal">
-    <div class="modal-box">
-      <div class="page-title" style="font-size:1.05rem; margin-bottom:8px;">고정 지출 등록</div>
-      <div class="form-group">
-        <label class="form-label">지출 항목명</label>
-        <input type="text" id="recTitle" class="form-input" placeholder="예: 넷플릭스, 월세">
-      </div>
-      <div class="form-group">
-        <label class="form-label">매월 결제일</label>
-        <input type="number" id="recDay" class="form-input" placeholder="1~31" min="1" max="31">
-      </div>
-      <div class="form-group">
-        <label class="form-label">결제 카드</label>
-        <select id="recCard" class="form-input"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">금액</label>
-        <input type="number" id="recAmount" class="form-input" placeholder="0">
-      </div>
-      <button class="btn-submit" onclick="saveRecurring()">등록하기</button>
-      <button class="btn-submit" style="background:#BCAAA4; margin-top:6px;" onclick="closeModal('recurringModal')">취소</button>
-    </div>
-  </div>
-
-  <!-- 모달 5: 카드 간 이체 -->
-  <div class="modal-overlay" id="transferModal">
-    <div class="modal-box">
-      <div class="page-title" style="font-size:1.05rem; margin-bottom:8px;">카드간 금액 이동</div>
-      <div class="form-group">
-        <label class="form-label">출금 카드 (A)</label>
-        <select id="fromCard" class="form-input"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">입금받을 카드 (B)</label>
-        <select id="toCard" class="form-input"></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">이체할 금액</label>
-        <input type="number" id="transferAmount" class="form-input" placeholder="50000">
-      </div>
-      <button class="btn-submit" onclick="processTransfer()">이체 완료</button>
-      <button class="btn-submit" style="background:#BCAAA4; margin-top:6px;" onclick="closeModal('transferModal')">취소</button>
-    </div>
-  </div>
-
-  <!-- 모달 6: 새 카드 등록 -->
-  <div class="modal-overlay" id="cardAddModal">
-    <div class="modal-box">
-      <div class="page-title" style="font-size:1.05rem; margin-bottom:8px;">새 카드 등록</div>
-      <div class="form-group">
-        <label class="form-label">카드명</label>
-        <input type="text" id="newCardName" class="form-input" placeholder="예: 토스체크카드">
-      </div>
-      <div class="form-group">
-        <label class="form-label">초기 잔액</label>
-        <input type="number" id="newCardBalance" class="form-input" placeholder="0">
-      </div>
-      <button class="btn-submit" onclick="saveNewCard()">추가</button>
-      <button class="btn-submit" style="background:#BCAAA4; margin-top:6px;" onclick="closeModal('cardAddModal')">취소</button>
-    </div>
   </div>
 
   <script>
-    let cards = JSON.parse(localStorage.getItem('note_cards_v3')) || [
-      { id: 'c1', name: 'A 카드', balance: 300000, totalSpent: 0, transfers: [] },
-      { id: 'c2', name: 'B 카드', balance: 150000, totalSpent: 0, transfers: [] }
-    ];
-    let transactions = JSON.parse(localStorage.getItem('note_txs_v3')) || [];
-    let recurringRules = JSON.parse(localStorage.getItem('note_recurring')) || [
-      { id: 'r1', title: '넷플릭스 구독', amount: 17000, day: 15, cardId: 'c1', category: '고정지출 📅' }
-    ];
-    
-    let categories = JSON.parse(localStorage.getItem('note_categories')) || ['식비 🍔', '카페 ☕', '교통 🚗', '쇼핑 🛍️', '생활 🛒', '고정지출 📅', '급여 💰', '기타 🏷️'];
-    let currentSelectedCategory = categories[categories.length - 1];
-
-    let monthlyBudgets = JSON.parse(localStorage.getItem('note_monthly_budgets')) || {
-      [new Date().toISOString().slice(0, 7)]: 600000
+    // --- 1. 스토리지 세팅 ---
+    const memoryStorage = {};
+    const safeStorage = {
+      getItem(key) {
+        try { return localStorage.getItem(key); } catch (e) { return memoryStorage[key] || null; }
+      },
+      setItem(key, value) {
+        try { localStorage.setItem(key, value); } catch (e) { memoryStorage[key] = String(value); }
+      },
+      removeItem(key) {
+        try { localStorage.removeItem(key); } catch (e) { delete memoryStorage[key]; }
+      }
     };
-    let weeklyBudgets = JSON.parse(localStorage.getItem('note_weekly_budgets')) || {};
 
-    let currentType = 'EXPENSE';
-    let currentFilter = 'ALL';
-    let currentPeriodMode = 'month';
-    let mainBudgetMode = 'month';
-    let chartInstance = null;
+    let transactions = JSON.parse(safeStorage.getItem('money_tx_list')) || [];
+    let fixedList = JSON.parse(safeStorage.getItem('money_fixed_list')) || [];
+    let pockets = JSON.parse(safeStorage.getItem('money_pockets')) || [];
+    
+    // 카테고리 & 카드 기본 목록
+    let defaultCategories = ['식비', '카페/간식', '교통', '쇼핑', '마트/생활', '문화/여가', '기타'];
+    let categories = JSON.parse(safeStorage.getItem('money_categories')) || defaultCategories;
+    let selectedCategory = safeStorage.getItem('money_last_category') || categories[0];
 
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const curYearMonth = today.slice(0, 7);
-    const curDay = now.getDate();
-    const curWeekIndex = Math.min(5, Math.ceil(curDay / 7));
-    const curMonthWeekKey = `${curYearMonth}-W${curWeekIndex}`;
+    let defaultCards = ['A카드', 'B카드', '체크카드', '신용카드', '현금'];
+    let cards = JSON.parse(safeStorage.getItem('money_cards')) || defaultCards;
+    let selectedCard = safeStorage.getItem('money_last_card') || cards[0];
 
-    document.getElementById('txDate').value = today;
-    document.getElementById('monthPicker').value = curYearMonth;
-    document.getElementById('weekMonthPicker').value = curYearMonth;
-    document.getElementById('modalMonthSelect').value = curYearMonth;
-    document.getElementById('modalWeekMonthSelect').value = curYearMonth;
+    let currentDate = new Date();
+    let selectedDateStr = '';
+    let currentType = 'expense';
+    let editingTxId = null;
+let editingFixedId = null;
+    let currentSelectedPocketId = null;
 
-    function getMonthWeekRange(yearMonth, weekIdx) {
-      const parts = yearMonth.split('-');
-      const year = parseInt(parts[0]);
-      const month = parseInt(parts[1]);
-      const lastDay = new Date(year, month, 0).getDate();
+    // --- 2. 탭 전환 ---
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
 
-      const startDay = (weekIdx - 1) * 7 + 1;
-      let endDay = weekIdx * 7;
-      if (weekIdx >= 5 || endDay > lastDay) {
-        endDay = lastDay;
+      if (tabId === 'calendarTab') renderCalendar();
+      if (tabId === 'manageTab') renderManageTab();
+      if (tabId === 'statsTab') renderStats();
+    }
+
+    function switchManagePage(pageId, cardEl) {
+      document.querySelectorAll('.manage-page').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.manage-sub-card').forEach(el => el.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+      cardEl.classList.add('active');
+    }
+
+    function formatYMD(year, month, date) {
+      const m = String(month).padStart(2, '0');
+      const d = String(date).padStart(2, '0');
+      return `${year}-${m}-${d}`;
+    }
+
+    // --- 3. 달력 렌더링 ---
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      document.getElementById('monthTitle').innerText = `${year}. ${String(month + 1).padStart(2, '0')}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      const prevLastDate = new Date(year, month, 0).getDate();
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      const days = ['일', '월', '화', '수', '목', '금', '토'];
+      days.forEach((day, idx) => {
+        const header = document.createElement('div');
+        header.className = 'day-header';
+        if (idx === 0) header.classList.add('sun');
+        if (idx === 6) header.classList.add('sat');
+        header.innerText = day;
+        grid.appendChild(header);
+      });
+
+      const today = new Date();
+      const todayStr = formatYMD(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+      for (let i = firstDay; i > 0; i--) {
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell other-month';
+        cell.innerHTML = `<span class="date-num">${prevLastDate - i + 1}</span>`;
+        grid.appendChild(cell);
       }
 
-      const pad = n => String(n).padStart(2, '0');
-      return {
-        start: `${yearMonth}-${pad(startDay)}`,
-        end: `${yearMonth}-${pad(endDay)}`,
-        label: `${weekIdx}주차 (${startDay}일~${endDay}일)`
+      for (let day = 1; day <= lastDate; day++) {
+        const dateStr = formatYMD(year, month + 1, day);
+        const dayOfWeek = new Date(year, month, day).getDay();
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell';
+        if (dayOfWeek === 0) cell.classList.add('sun');
+        if (dayOfWeek === 6) cell.classList.add('sat');
+        if (dateStr === todayStr) cell.classList.add('today');
+
+        const dayTxs = transactions.filter(t => t.date === dateStr);
+        let expSum = 0;
+        let incSum = 0;
+        dayTxs.forEach(t => {
+          if (t.type === 'expense') expSum += t.amount;
+          if (t.type === 'income') incSum += t.amount;
+        });
+
+        let amountsHtml = '';
+        if (expSum > 0 || incSum > 0) {
+          amountsHtml = `
+            <div class="cell-amounts">
+              ${expSum > 0 ? `<span class="cell-exp">-${expSum.toLocaleString()}원</span>` : ''}
+              ${incSum > 0 ? `<span class="cell-inc">+${incSum.toLocaleString()}원</span>` : ''}
+            </div>
+          `;
+        }
+
+        cell.innerHTML = `<span class="date-num">${day}</span>${amountsHtml}`;
+        cell.addEventListener('click', () => openModal(dateStr));
+        grid.appendChild(cell);
+      }
+
+      const totalCells = firstDay + lastDate;
+      const nextDays = (totalCells > 35 ? 42 : 35) - totalCells;
+      for (let j = 1; j <= nextDays; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell other-month';
+        cell.innerHTML = `<span class="date-num">${j}</span>`;
+        grid.appendChild(cell);
+      }
+
+      calculateSummaries();
+    }
+
+    // --- 4. 요약 계산 ---
+    function calculateSummaries() {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      const monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+      let monthExp = 0;
+      transactions.forEach(t => {
+        if (t.type === 'expense' && t.date.startsWith(monthPrefix)) {
+          monthExp += t.amount;
+        }
+      });
+      document.getElementById('monthText').innerText = `${monthExp.toLocaleString()}원`;
+
+      const day = now.getDay();
+      const diffToMonday = (day === 0 ? -6 : 1) - day;
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() + diffToMonday);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      let weekExp = 0;
+      transactions.forEach(t => {
+        if (t.type === 'expense') {
+          const tDate = new Date(t.date + 'T00:00:00');
+          if (tDate >= startOfWeek && tDate <= endOfWeek) {
+            weekExp += t.amount;
+          }
+        }
+      });
+      document.getElementById('weekText').innerText = `${weekExp.toLocaleString()}원`;
+    }
+
+    // --- 5. 3번 탭(관리) 렌더링 & 머니 포켓 제어 ---
+    function renderManageTab() {
+      // 1) 고정지출 렌더링 (클릭 시 수정 지원)
+      const manageFixedList = document.getElementById('manageFixedList');
+      const fixedTotalSum = document.getElementById('fixedTotalSum');
+      manageFixedList.innerHTML = '';
+      let sum = 0;
+
+      if (fixedList.length === 0) {
+        manageFixedList.innerHTML = '<p style="font-size:0.85rem; color:#94a3b8; padding:16px 0; text-align:center;">등록된 고정지출이 없습니다.</p>';
+      } else {
+        fixedList.forEach(item => {
+          sum += item.amount;
+          const div = document.createElement('div');
+          div.className = 'fixed-item';
+          div.style.cursor = 'pointer';
+          div.addEventListener('click', () => editFixedItem(item.id));
+          div.innerHTML = `
+            <div class="fixed-item-left">
+              <div class="fixed-item-top">
+                <span class="fixed-day-badge">${escapeHtml(item.day)}</span>
+                <strong>${escapeHtml(item.desc)}</strong>
+              </div>
+              ${item.memo ? `<span class="fixed-item-memo">📝 ${escapeHtml(item.memo)}</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:700; color:var(--expense);">-${item.amount.toLocaleString()}원</span>
+              <button class="btn-del" onclick="deleteFixedItem(${item.id}, event)">✕</button>
+            </div>
+          `;
+          manageFixedList.appendChild(div);
+        });
+      }
+      fixedTotalSum.innerText = `월 ${sum.toLocaleString()}원`;
+
+      // 2) 기본 카드 목록
+      const manageCardList = document.getElementById('manageCardList');
+      manageCardList.innerHTML = '';
+      cards.forEach(c => {
+        const tag = document.createElement('div');
+        tag.className = 'rounded-tag';
+        tag.innerHTML = `
+          <span>${escapeHtml(c)}</span>
+          <button type="button" onclick="deleteCardFromManage('${escapeHtml(c)}')">✕</button>
+        `;
+        manageCardList.appendChild(tag);
+      });
+
+      // 포켓 생성 드롭다운 세팅
+      const pFrom = document.getElementById('pocketFromCard');
+      const pTo = document.getElementById('pocketToCard');
+      pFrom.innerHTML = '';
+      pTo.innerHTML = '';
+      cards.forEach(c => {
+        pFrom.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
+        pTo.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`;
+      });
+      if (cards.length > 1) pTo.selectedIndex = 1;
+
+      // 3) 머니 포켓 목록 렌더링
+      renderPocketList();
+
+      // 4) 카테고리
+      const manageCatList = document.getElementById('manageCatList');
+      manageCatList.innerHTML = '';
+      categories.forEach(cat => {
+        const tag = document.createElement('div');
+        tag.className = 'rounded-tag';
+        tag.innerHTML = `
+          <span>${escapeHtml(cat)}</span>
+          <button type="button" onclick="deleteCatFromManage('${escapeHtml(cat)}')">✕</button>
+        `;
+        manageCatList.appendChild(tag);
+      });
+    }
+
+    function renderPocketList() {
+      const pocketContainer = document.getElementById('pocketListContainer');
+      pocketContainer.innerHTML = '';
+
+      if (pockets.length === 0) {
+        pocketContainer.innerHTML = '<p style="font-size:0.8rem; color:#94a3b8; text-align:center; padding:10px 0;">등록된 이동금 현황이 없습니다.</p>';
+        return;
+      }
+
+      pockets.forEach(pkt => {
+        const remain = pkt.totalAmount - pkt.usedAmount;
+        const percent = Math.min(100, Math.round((pkt.usedAmount / pkt.totalAmount) * 100));
+
+        const card = document.createElement('div');
+        card.className = 'pocket-card';
+        card.innerHTML = `
+          <div class="pocket-header">
+            <div>
+              <span class="pocket-route">${escapeHtml(pkt.fromCard)} ➔ ${escapeHtml(pkt.toCard)}</span>
+              <strong style="margin-left:4px;">${escapeHtml(pkt.name)}</strong>
+            </div>
+            <button class="btn-del" onclick="deletePocket(${pkt.id})">✕ 삭제</button>
+          </div>
+          <div class="pocket-numbers">
+            <span>이동금: <strong>${pkt.totalAmount.toLocaleString()}원</strong></span>
+            <span>사용: <strong style="color:var(--expense);">${pkt.usedAmount.toLocaleString()}원</strong></span>
+            <span>남음: <strong style="color:var(--income);">${remain.toLocaleString()}원</strong></span>
+          </div>
+          <div class="pocket-progress-bg">
+            <div class="pocket-progress-bar" style="width: ${percent}%;"></div>
+          </div>
+        `;
+        pocketContainer.appendChild(card);
+      });
+    }
+
+    document.getElementById('btnCreatePocket').addEventListener('click', () => {
+      const fromCard = document.getElementById('pocketFromCard').value;
+      const toCard = document.getElementById('pocketToCard').value;
+      const amount = Number(document.getElementById('pocketAmount').value);
+
+      if (fromCard === toCard) {
+        alert('출금 카드와 입금 카드가 달라야 합니다.');
+        return;
+      }
+      if (!amount || amount <= 0) {
+        alert('올바른 이동 금액을 입력하세요.');
+        return;
+      }
+
+      const newPocket = {
+        id: Date.now(),
+        name: `${fromCard}→${toCard} (${formatShortNumber(amount)})`,
+        fromCard: fromCard,
+        toCard: toCard,
+        totalAmount: amount,
+        usedAmount: 0
       };
-    }
 
-    function updateWeekOptions() {
-      const selMonth = document.getElementById('weekMonthPicker').value;
-      const selectEl = document.getElementById('weekIndexSelect');
-      const parts = selMonth.split('-');
-      const lastDay = new Date(parseInt(parts[0]), parseInt(parts[1]), 0).getDate();
-      const totalWeeks = Math.ceil(lastDay / 7);
+      pockets.unshift(newPocket);
+      safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+      document.getElementById('pocketAmount').value = '';
+      renderPocketList();
+      updateCardUI();
+    });
 
-      let html = '';
-      for (let i = 1; i <= totalWeeks; i++) {
-        const range = getMonthWeekRange(selMonth, i);
-        html += `<option value="${i}">${range.label}</option>`;
+    window.deletePocket = function(id) {
+      if (confirm('이 이동금 현황을 삭제하시겠습니까?')) {
+        pockets = pockets.filter(p => p.id !== id);
+        safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+        renderPocketList();
+        updateCardUI();
       }
-      selectEl.innerHTML = html;
+    };
+
+    function formatShortNumber(num) {
+      if (num >= 10000) return (num / 10000) + '만';
+      return num.toLocaleString();
     }
 
-    function updateModalWeekOptions() {
-      const selMonth = document.getElementById('modalWeekMonthSelect').value;
-      const selectEl = document.getElementById('modalWeekIndexSelect');
-      const parts = selMonth.split('-');
-      const lastDay = new Date(parseInt(parts[0]), parseInt(parts[1]), 0).getDate();
-      const totalWeeks = Math.ceil(lastDay / 7);
+    // 고정지출 추가 (메모 포함)
+// 고정지출 클릭 시 입력창으로 데이터 불러오기 (수정 모드)
+    window.editFixedItem = function(id) {
+      const target = fixedList.find(item => item.id === id);
+      if (!target) return;
 
-      let html = '';
-      for (let i = 1; i <= totalWeeks; i++) {
-        const range = getMonthWeekRange(selMonth, i);
-        html += `<option value="${i}">${range.label}</option>`;
+      editingFixedId = id;
+      document.getElementById('addFixedDesc').value = target.desc;
+      document.getElementById('addFixedAmount').value = target.amount;
+      document.getElementById('addFixedDay').value = target.day.replace('일', '');
+      document.getElementById('addFixedMemo').value = target.memo || '';
+      document.getElementById('btnAddFixed').innerText = '수정';
+    };
+
+    // 고정지출 저장/수정 완료
+    document.getElementById('btnAddFixed').addEventListener('click', () => {
+      const desc = document.getElementById('addFixedDesc').value.trim();
+      const amount = Number(document.getElementById('addFixedAmount').value);
+      const day = document.getElementById('addFixedDay').value;
+      const memo = document.getElementById('addFixedMemo').value.trim();
+
+      if (!desc || !amount || amount <= 0) {
+        alert('고정지출 항목명과 금액을 올바르게 입력하세요.');
+        return;
       }
-      selectEl.innerHTML = html;
-    }
 
-    updateWeekOptions();
-    updateModalWeekOptions();
-    document.getElementById('weekIndexSelect').value = curWeekIndex;
-    document.getElementById('modalWeekIndexSelect').value = curWeekIndex;
+      const dayText = day === '말일' ? '말일' : `${day}일`;
 
-    function saveData() {
-      localStorage.setItem('note_cards_v3', JSON.stringify(cards));
-      localStorage.setItem('note_txs_v3', JSON.stringify(transactions));
-      localStorage.setItem('note_recurring', JSON.stringify(recurringRules));
-      localStorage.setItem('note_monthly_budgets', JSON.stringify(monthlyBudgets));
-      localStorage.setItem('note_weekly_budgets', JSON.stringify(weeklyBudgets));
-      localStorage.setItem('note_categories', JSON.stringify(categories));
-      renderAll();
-    }
-
-    function switchTab(num) {
-      document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
-        btn.classList.toggle('active', idx === num - 1);
-      });
-      document.querySelectorAll('.tab-content').forEach((content, idx) => {
-        content.classList.toggle('active', idx === num - 1);
-      });
-      if (num === 1) renderTxList();
-      if (num === 2) renderPeriodStats();
-      if (num === 3) renderCategoryStats();
-      if (num === 4) renderCards();
-      if (num === 5) renderRecurringList();
-    }
-
-    function renderAll() {
-      renderTxList();
-      renderBudgetAndCompare();
-      renderCards();
-      renderPeriodStats();
-      renderCategoryStats();
-      renderRecurringList();
-      updateCategoryUI();
-    }
-
-    function updateCategoryUI() {
-      const displayEl = document.getElementById('selectedCategoryDisplay');
-      if (displayEl) {
-        displayEl.innerText = currentSelectedCategory;
+      if (editingFixedId !== null) {
+        fixedList = fixedList.map(item => {
+          if (item.id === editingFixedId) {
+            return { ...item, desc, amount, day: dayText, memo };
+          }
+          return item;
+        });
+        editingFixedId = null;
+        document.getElementById('btnAddFixed').innerText = '추가';
+      } else {
+        fixedList.push({
+          id: Date.now(),
+          desc,
+          amount,
+          day: dayText,
+          memo
+        });
       }
-      const editSelect = document.getElementById('editTxCategory');
-      if (editSelect) {
-        editSelect.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      safeStorage.setItem('money_fixed_list', JSON.stringify(fixedList));
+      document.getElementById('addFixedDesc').value = '';
+      document.getElementById('addFixedAmount').value = '';
+      document.getElementById('addFixedMemo').value = '';
+      renderManageTab();
+    });
+
+    // 고정지출 삭제
+    window.deleteFixedItem = function(id, e) {
+      if (e) e.stopPropagation();
+      if (confirm('이 고정지출 항목을 삭제하시겠습니까?')) {
+        fixedList = fixedList.filter(item => item.id !== id);
+        safeStorage.setItem('money_fixed_list', JSON.stringify(fixedList));
+        if (editingFixedId === id) {
+          editingFixedId = null;
+          document.getElementById('addFixedDesc').value = '';
+          document.getElementById('addFixedAmount').value = '';
+          document.getElementById('addFixedMemo').value = '';
+          document.getElementById('btnAddFixed').innerText = '추가';
+        }
+        renderManageTab();
       }
-    }
+    };
 
-    function toggleCatDropdown() {
-      const panel = document.getElementById('catDropdownPanel');
-      const isOpen = panel.style.display === 'block';
-      panel.style.display = isOpen ? 'none' : 'block';
-      if (!isOpen) {
-        renderCatDropdownList();
-        setTimeout(() => document.getElementById('newCategoryInput').focus(), 50);
+    document.getElementById('btnAddCardItem').addEventListener('click', () => {
+      const val = document.getElementById('addCardInput').value.trim();
+      if (!val) return;
+      if (!cards.includes(val)) {
+        cards.push(val);
+        safeStorage.setItem('money_cards', JSON.stringify(cards));
       }
-    }
+      document.getElementById('addCardInput').value = '';
+      renderManageTab();
+      updateCardUI();
+    });
 
-    function renderCatDropdownList() {
-      const listEl = document.getElementById('catItemsList');
-      listEl.innerHTML = categories.map(c => `
-        <div class="cat-item" onclick="selectCatItem('${c}')">${c}</div>
-      `).join('');
-    }
+    window.deleteCardFromManage = function(c) {
+      if (cards.length <= 1) {
+        alert('최소 1개의 결제수단은 유지해야 합니다.');
+        return;
+      }
+      cards = cards.filter(item => item !== c);
+      safeStorage.setItem('money_cards', JSON.stringify(cards));
+      if (selectedCard === c) selectedCard = cards[0];
+      renderManageTab();
+      updateCardUI();
+    };
 
-    function selectCatItem(cat) {
-      currentSelectedCategory = cat;
-      document.getElementById('selectedCategoryDisplay').innerText = cat;
-      document.getElementById('catDropdownPanel').style.display = 'none';
-    }
-
-    function addNewCategoryFromDropdown() {
-      const inputEl = document.getElementById('newCategoryInput');
-      const val = inputEl.value.trim();
-      if (!val) return alert('추가할 카테고리 이름을 입력하세요.');
-
+    document.getElementById('btnAddCatItem').addEventListener('click', () => {
+      const val = document.getElementById('addCatInput').value.trim();
+      if (!val) return;
       if (!categories.includes(val)) {
         categories.push(val);
-        localStorage.setItem('note_categories', JSON.stringify(categories));
+        safeStorage.setItem('money_categories', JSON.stringify(categories));
+      }
+      document.getElementById('addCatInput').value = '';
+      renderManageTab();
+      updateCategoryUI();
+    });
+
+    window.deleteCatFromManage = function(cat) {
+      if (categories.length <= 1) {
+        alert('최소 1개의 카테고리는 유지해야 합니다.');
+        return;
+      }
+      categories = categories.filter(c => c !== cat);
+      safeStorage.setItem('money_categories', JSON.stringify(categories));
+      if (selectedCategory === cat) selectedCategory = categories[0];
+      renderManageTab();
+      updateCategoryUI();
+    };
+
+    // --- 6. 드롭다운 & 롱프레스 제어 ---
+    function bindLongPress(element, onLongPress, onClick) {
+      let pressTimer = null;
+      let isLongPressed = false;
+
+      function start() {
+        isLongPressed = false;
+        pressTimer = setTimeout(() => {
+          isLongPressed = true;
+          onLongPress();
+        }, 500);
       }
 
-      currentSelectedCategory = val;
-      inputEl.value = '';
-      document.getElementById('catDropdownPanel').style.display = 'none';
-      renderAll();
+      function cancel() {
+        if (pressTimer !== null) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      }
+
+      function click(e) {
+        if (isLongPressed) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        onClick();
+      }
+
+      element.addEventListener('mousedown', start);
+      element.addEventListener('touchstart', start, { passive: true });
+      element.addEventListener('mouseup', cancel);
+      element.addEventListener('mouseleave', cancel);
+      element.addEventListener('touchend', cancel);
+      element.addEventListener('touchcancel', cancel);
+      element.addEventListener('click', click);
     }
 
-    window.addEventListener('click', (e) => {
-      const wrap = document.querySelector('.custom-select-wrap');
-      if (wrap && !wrap.contains(e.target)) {
-        document.getElementById('catDropdownPanel').style.display = 'none';
+    const btnCatTrigger = document.getElementById('btnCatTrigger');
+    const selectedCatLabel = document.getElementById('selectedCatLabel');
+    const catDropdown = document.getElementById('catDropdown');
+    const newCatInput = document.getElementById('newCatInput');
+    const btnAddCat = document.getElementById('btnAddCat');
+    const catListBox = document.getElementById('catListBox');
+
+    function updateCategoryUI() {
+      selectedCatLabel.innerText = selectedCategory;
+      catListBox.innerHTML = '';
+      categories.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+        item.innerHTML = `
+          <span class="item-name" style="flex:1;">${escapeHtml(cat)}</span>
+          <button type="button" class="btn-item-del">✕</button>
+        `;
+
+        const nameSpan = item.querySelector('.item-name');
+        bindLongPress(nameSpan, () => {
+          const newName = prompt(`'${cat}' 카테고리 이름을 수정하세요:`, cat);
+          if (newName && newName.trim() && newName.trim() !== cat) {
+            const trimmed = newName.trim();
+            categories = categories.map(c => c === cat ? trimmed : c);
+            if (selectedCategory === cat) selectedCategory = trimmed;
+            safeStorage.setItem('money_categories', JSON.stringify(categories));
+            safeStorage.setItem('money_last_category', selectedCategory);
+            updateCategoryUI();
+          }
+        }, () => {
+          selectedCategory = cat;
+          safeStorage.setItem('money_last_category', cat);
+          selectedCatLabel.innerText = cat;
+          catDropdown.classList.add('hidden');
+        });
+
+        item.querySelector('.btn-item-del').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteCatFromManage(cat);
+        });
+
+        catListBox.appendChild(item);
+      });
+    }
+
+    btnCatTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cardDropdown.classList.add('hidden');
+      const isHidden = catDropdown.classList.toggle('hidden');
+      if (!isHidden) newCatInput.focus();
+    });
+
+    btnAddCat.addEventListener('click', () => {
+      const val = newCatInput.value.trim();
+      if (!val) return;
+      if (!categories.includes(val)) {
+        categories.unshift(val);
+        safeStorage.setItem('money_categories', JSON.stringify(categories));
+      }
+      selectedCategory = val;
+      safeStorage.setItem('money_last_category', selectedCategory);
+      newCatInput.value = '';
+      catDropdown.classList.add('hidden');
+      updateCategoryUI();
+    });
+
+    newCatInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') btnAddCat.click(); });
+
+    // 결제수단 드롭다운
+    const btnCardTrigger = document.getElementById('btnCardTrigger');
+    const selectedCardLabel = document.getElementById('selectedCardLabel');
+    const cardDropdown = document.getElementById('cardDropdown');
+    const cardListBox = document.getElementById('cardListBox');
+
+    function updateCardUI() {
+      selectedCardLabel.innerText = selectedCard;
+      cardListBox.innerHTML = '';
+
+      cards.forEach(cItem => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+        item.innerHTML = `<span class="item-name" style="flex:1;">💳 ${escapeHtml(cItem)}</span>`;
+
+        item.addEventListener('click', () => {
+          selectedCard = cItem;
+          currentSelectedPocketId = null;
+          safeStorage.setItem('money_last_card', cItem);
+          selectedCardLabel.innerText = cItem;
+          cardDropdown.classList.add('hidden');
+        });
+        cardListBox.appendChild(item);
+      });
+
+      if (pockets.length > 0) {
+        const divider = document.createElement('div');
+        divider.style.cssText = 'font-size:0.7rem; font-weight:700; color:#94a3b8; padding:6px 4px 2px 4px; border-top:1px solid #e2e8f0; margin-top:4px;';
+        divider.innerText = '📦 옮겨온 이동금에서 차감';
+        cardListBox.appendChild(divider);
+
+        pockets.forEach(pkt => {
+          const remain = pkt.totalAmount - pkt.usedAmount;
+          const item = document.createElement('div');
+          item.className = 'dropdown-item';
+          item.innerHTML = `
+            <span style="font-size:0.75rem; color:var(--primary); font-weight:600;">
+              🎯 ${escapeHtml(pkt.name)} (남은: ${remain.toLocaleString()}원)
+            </span>
+          `;
+          item.addEventListener('click', () => {
+            selectedCard = `${pkt.toCard} [${pkt.name}]`;
+            currentSelectedPocketId = pkt.id;
+            selectedCardLabel.innerText = selectedCard;
+            cardDropdown.classList.add('hidden');
+          });
+          cardListBox.appendChild(item);
+        });
+      }
+    }
+
+    btnCardTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      catDropdown.classList.add('hidden');
+      cardDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!btnCatTrigger.contains(e.target) && !catDropdown.contains(e.target)) {
+        catDropdown.classList.add('hidden');
+      }
+      if (!btnCardTrigger.contains(e.target) && !cardDropdown.contains(e.target)) {
+        cardDropdown.classList.add('hidden');
       }
     });
 
-    function renderTxList() {
-      const list = document.getElementById('txList');
-      const totalExpEl = document.getElementById('quickTotalExp');
-      const searchKeyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    // --- 7. 모달 뷰 & 저장 ---
+    const dayModal = document.getElementById('dayModal');
+    const modalDateTitle = document.getElementById('modalDateTitle');
+    const btnCloseModal = document.getElementById('btnCloseModal');
+    const btnOpenForm = document.getElementById('btnOpenForm');
+    const formSection = document.getElementById('formSection');
 
-      const totalExpense = transactions
-        .filter(t => t.type === 'EXPENSE')
-        .reduce((sum, t) => sum + t.amount, 0);
-      totalExpEl.innerText = `총 지출: ${totalExpense.toLocaleString()}원`;
+    const typeExpBtn = document.getElementById('typeExpBtn');
+    const typeIncBtn = document.getElementById('typeIncBtn');
+    const amountInput = document.getElementById('amountInput');
+    const memoInput = document.getElementById('memoInput');
+    const selectRow = document.getElementById('selectRow');
+    const catWrap = document.getElementById('catWrap');
+    const btnSaveTx = document.getElementById('btnSaveTx');
+    const modalTxItems = document.getElementById('modalTxItems');
 
-      let filtered = transactions.filter(t => {
-        if (currentFilter !== 'ALL' && t.type !== currentFilter) return false;
-        if (searchKeyword && !t.title.toLowerCase().includes(searchKeyword)) return false;
-        return true;
-      });
+    memoInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+      if (this.scrollHeight > 100) {
+        this.style.overflowY = 'auto';
+      } else {
+        this.style.overflowY = 'hidden';
+      }
+    });
 
-      if (filtered.length === 0) {
-        list.innerHTML = `<div style="text-align:center; padding:24px 0; color:var(--text-sub); font-size:0.8rem;">검색 또는 일치하는 내역이 없습니다.</div>`;
+    function setFormMode(type) {
+      currentType = type;
+      if (type === 'expense') {
+        typeExpBtn.className = 'active-expense';
+        typeIncBtn.className = '';
+        catWrap.classList.remove('hidden');
+        selectRow.classList.remove('single');
+      } else {
+        typeIncBtn.className = 'active-income';
+        typeExpBtn.className = '';
+        catWrap.classList.add('hidden');
+        selectRow.classList.add('single');
+      }
+    }
+
+    function openModal(dateStr) {
+      selectedDateStr = dateStr;
+      modalDateTitle.innerText = `${dateStr} 내역`;
+      
+      formSection.classList.add('hidden');
+      btnOpenForm.classList.remove('hidden');
+      editingTxId = null;
+      currentSelectedPocketId = null;
+
+      catDropdown.classList.add('hidden');
+      cardDropdown.classList.add('hidden');
+
+      updateCategoryUI();
+      updateCardUI();
+      renderModalTxList();
+      dayModal.classList.remove('hidden');
+    }
+
+    btnOpenForm.addEventListener('click', () => {
+      editingTxId = null;
+      currentSelectedPocketId = null;
+      btnOpenForm.classList.add('hidden');
+      formSection.classList.remove('hidden');
+      
+      amountInput.value = '';
+      memoInput.value = '';
+      memoInput.style.height = '38px';
+      setFormMode('expense');
+      btnSaveTx.innerText = '등록하기';
+      amountInput.focus();
+    });
+
+    window.editTx = function(id) {
+      const target = transactions.find(t => t.id === id);
+      if (!target) return;
+
+      editingTxId = id;
+      currentSelectedPocketId = target.pocketId || null;
+      btnOpenForm.classList.add('hidden');
+      formSection.classList.remove('hidden');
+
+      setFormMode(target.type);
+      amountInput.value = target.amount;
+      memoInput.value = target.memo || '';
+      memoInput.style.height = 'auto';
+      memoInput.style.height = (memoInput.scrollHeight || 38) + 'px';
+
+      if (target.type === 'expense' && target.category) {
+        selectedCategory = target.category;
+        selectedCatLabel.innerText = target.category;
+      }
+      if (target.card) {
+        selectedCard = target.card;
+        selectedCardLabel.innerText = target.card;
+      }
+
+      btnSaveTx.innerText = '수정 완료';
+      amountInput.focus();
+    };
+
+    btnCloseModal.addEventListener('click', () => {
+      dayModal.classList.add('hidden');
+    });
+
+    typeExpBtn.addEventListener('click', () => setFormMode('expense'));
+    typeIncBtn.addEventListener('click', () => setFormMode('income'));
+
+    btnSaveTx.addEventListener('click', () => {
+      const amount = Number(amountInput.value);
+      const memo = memoInput.value.trim() || (currentType === 'expense' ? '지출' : '수입');
+      const category = currentType === 'expense' ? selectedCategory : '';
+      const card = selectedCard;
+
+      if (!amount || amount <= 0) {
+        alert('올바른 금액을 입력하세요.');
         return;
       }
 
-      list.innerHTML = filtered.map(t => {
-        let sign = '-';
-        let cls = 'tx-expense';
-        if (t.type === 'INCOME') { sign = '+'; cls = 'tx-income'; }
-        if (t.type === 'TRANSFER') { sign = '⇄'; cls = 'tx-transfer'; }
-
-        const card = cards.find(c => c.id === t.cardId);
-        const cardName = card ? card.name : '';
-        const pocketLabel = t.transferTag ? ` <span style="color:var(--transfer); font-weight:bold;">[${t.transferTag}]</span>` : '';
-
-        return `
-          <div class="tx-item" onclick="openEditModal('${t.id}')">
-            <div>
-              <div class="tx-title">${t.title}${pocketLabel}</div>
-              <div class="tx-sub">${t.date} · ${cardName} · ${t.category}</div>
-            </div>
-            <div class="tx-amount ${cls}">
-              ${sign}${t.amount.toLocaleString()}원
-              <div style="font-size:0.65rem; color:#A09890; font-weight:normal;">✏️ 수정</div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function switchMainBudgetMode(mode) {
-      mainBudgetMode = mode;
-      document.getElementById('btnMainBudgetMonth').classList.toggle('active', mode === 'month');
-      document.getElementById('btnMainBudgetWeek').classList.toggle('active', mode === 'week');
-      renderBudgetAndCompare();
-    }
-
-    function renderBudgetAndCompare() {
-      let targetBudget = 0;
-      let spent = 0;
-      const titleEl = document.getElementById('budgetBannerTitle');
-
-      if (mainBudgetMode === 'month') {
-        titleEl.innerText = `📊 이번 달(${curYearMonth}) 목표 예산`;
-        targetBudget = monthlyBudgets[curYearMonth] || 0;
-        spent = transactions
-          .filter(t => t.type === 'EXPENSE' && t.date.startsWith(curYearMonth))
-          .reduce((s, t) => s + t.amount, 0);
-      } else {
-        titleEl.innerText = `📊 이번 달 ${curWeekIndex}주차 목표 예산`;
-        targetBudget = weeklyBudgets[curMonthWeekKey] || 0;
-        const range = getMonthWeekRange(curYearMonth, curWeekIndex);
-        spent = transactions
-          .filter(t => t.type === 'EXPENSE' && t.date >= range.start && t.date <= range.end)
-          .reduce((s, t) => s + t.amount, 0);
-      }
-
-      const remainBudget = targetBudget - spent;
-      const budgetPercent = targetBudget > 0 ? Math.min(100, Math.round((spent / targetBudget) * 100)) : 0;
-
-      document.getElementById('budgetLabel').innerText = `잔여: ${remainBudget.toLocaleString()}원 / 목표 ${targetBudget.toLocaleString()}원`;
-      document.getElementById('budgetPercent').innerText = `${budgetPercent}% 사용`;
-      document.getElementById('budgetFill').style.width = `${budgetPercent}%`;
-      document.getElementById('budgetFill').style.background = budgetPercent >= 90 ? 'var(--accent)' : 'var(--warn)';
-
-      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const prevYearMonth = d.toISOString().slice(0, 7);
-      const thisMonthSpent = transactions.filter(t => t.type === 'EXPENSE' && t.date.startsWith(curYearMonth)).reduce((s, t) => s + t.amount, 0);
-      const prevMonthSpent = transactions.filter(t => t.type === 'EXPENSE' && t.date.startsWith(prevYearMonth)).reduce((s, t) => s + t.amount, 0);
-
-      const diffBadge = document.getElementById('compareBadge');
-      if (prevMonthSpent === 0) {
-        diffBadge.innerText = `전월 데이터 없음 (이번 달: ${thisMonthSpent.toLocaleString()}원)`;
-        diffBadge.style.background = '#E2E8F0';
-        diffBadge.style.color = '#475569';
-      } else {
-        const diff = thisMonthSpent - prevMonthSpent;
-        const rate = Math.round(Math.abs(diff) / prevMonthSpent * 100);
-        if (diff > 0) {
-          diffBadge.innerText = `📈 지난달보다 ${rate}% (${diff.toLocaleString()}원) 더 썼어요!`;
-          diffBadge.style.background = '#FEE2E2';
-          diffBadge.style.color = '#B91C1C';
-        } else {
-          diffBadge.innerText = `📉 지난달보다 ${rate}% (${Math.abs(diff).toLocaleString()}원) 절약 중!`;
-          diffBadge.style.background = '#DCFCE7';
-          diffBadge.style.color = '#15803D';
+      if (editingTxId !== null) {
+        const oldTx = transactions.find(t => t.id === editingTxId);
+        if (oldTx && oldTx.pocketId) {
+          pockets = pockets.map(p => p.id === oldTx.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - oldTx.amount) } : p);
         }
       }
-    }
 
-    function filterChip(type, el) {
-      currentFilter = type;
-      document.querySelectorAll('.filter-wrap .chip').forEach(c => c.classList.remove('active'));
-      el.classList.add('active');
-      renderTxList();
-    }
-
-    function setPeriodView(mode) {
-      currentPeriodMode = mode;
-      const bMonth = document.getElementById('btnPeriodMonth');
-      const bWeek = document.getElementById('btnPeriodWeek');
-      const monthInput = document.getElementById('monthPicker');
-      const weekGroup = document.getElementById('weekPickerGroup');
-
-      if (mode === 'month') {
-        bMonth.style.background = 'var(--notepad-top)';
-        bWeek.style.background = '#BCAAA4';
-        monthInput.style.display = 'block';
-        weekGroup.style.display = 'none';
-      } else {
-        bWeek.style.background = 'var(--notepad-top)';
-        bMonth.style.background = '#BCAAA4';
-        monthInput.style.display = 'none';
-        weekGroup.style.display = 'flex';
-      }
-      renderPeriodStats();
-    }
-
-    function renderPeriodStats() {
-      const periodTxList = document.getElementById('periodTxList');
-      const periodTotalSpent = document.getElementById('periodTotalSpent');
-      const boxTitle = document.getElementById('periodBoxTitle');
-      const dateRangeEl = document.getElementById('periodDateRange');
-
-      let filtered = [];
-      if (currentPeriodMode === 'month') {
-        const selMonth = document.getElementById('monthPicker').value;
-        boxTitle.innerText = `${selMonth} 월별 지출 총합`;
-        dateRangeEl.innerText = '';
-        filtered = transactions.filter(t => t.type === 'EXPENSE' && t.date.startsWith(selMonth));
-      } else {
-        const selMonth = document.getElementById('weekMonthPicker').value;
-        const weekIdx = parseInt(document.getElementById('weekIndexSelect').value) || 1;
-        const range = getMonthWeekRange(selMonth, weekIdx);
-        boxTitle.innerText = `${selMonth} ${weekIdx}주차 지출 총합`;
-        dateRangeEl.innerText = `기간: ${range.start} ~ ${range.end}`;
-        filtered = transactions.filter(t => t.type === 'EXPENSE' && t.date >= range.start && t.date <= range.end);
+      if (currentType === 'expense' && currentSelectedPocketId) {
+        pockets = pockets.map(p => p.id === currentSelectedPocketId ? { ...p, usedAmount: p.usedAmount + amount } : p);
+        safeStorage.setItem('money_pockets', JSON.stringify(pockets));
       }
 
-      const totalSpent = filtered.reduce((s, t) => s + t.amount, 0);
-      periodTotalSpent.innerText = `${totalSpent.toLocaleString()}원`;
-
-      if (filtered.length === 0) {
-        periodTxList.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--text-sub); font-size:0.8rem;">해당 기간 지출 내역이 없습니다.</div>`;
-        return;
-      }
-
-      periodTxList.innerHTML = filtered.map(t => `
-        <div class="tx-item" onclick="openEditModal('${t.id}')">
-          <div>
-            <div class="tx-title">${t.title}</div>
-            <div class="tx-sub">${t.date} · ${t.category}</div>
-          </div>
-          <div class="tx-amount tx-expense">-${t.amount.toLocaleString()}원</div>
-        </div>
-      `).join('');
-    }
-
-    function renderCategoryStats() {
-      const catMap = {};
-      transactions.filter(t => t.type === 'EXPENSE').forEach(t => {
-        catMap[t.category] = (catMap[t.category] || 0) + t.amount;
-      });
-
-      const labels = Object.keys(catMap);
-      const data = Object.values(catMap);
-
-      if (chartInstance) chartInstance.destroy();
-      const ctx = document.getElementById('categoryChart').getContext('2d');
-      chartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: labels.length ? labels : ['지출 없음'],
-          datasets: [{
-            data: data.length ? data : [1],
-            backgroundColor: ['#D9534F', '#F0AD4E', '#5CB85C', '#5BC0DE', '#9C27B0', '#795548', '#9E9E9E', '#3F51B5'],
-            borderWidth: 2,
-            borderColor: '#FFFDF9'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'right', labels: { boxWidth: 10 } } }
-        }
-      });
-
-      const breakdown = document.getElementById('categoryBreakdown');
-      breakdown.innerHTML = labels.map((cat, i) => `
-        <div class="cat-item-clickable">
-          <span style="font-size:0.8rem;">🏷️ ${cat}</span>
-          <span style="font-size:0.8rem; font-weight:700;">${data[i].toLocaleString()}원</span>
-        </div>
-      `).join('');
-    }
-
-    function renderCards() {
-      const cardList = document.getElementById('cardList');
-      const txCard = document.getElementById('txCard');
-      const fromCard = document.getElementById('fromCard');
-      const toCard = document.getElementById('toCard');
-      const recCard = document.getElementById('recCard');
-
-      let options = '';
-      cardList.innerHTML = cards.map(c => {
-        options += `<option value="${c.id}">${c.name}</option>`;
-
-        let pocketsHtml = '';
-        if (c.transfers && c.transfers.length > 0) {
-          pocketsHtml = c.transfers.map(tf => {
-            const remain = tf.amount - tf.used;
-            const percent = Math.min(100, Math.round((tf.used / tf.amount) * 100));
-
-            let usageListHtml = '';
-            if (tf.usageHistory && tf.usageHistory.length > 0) {
-              usageListHtml = tf.usageHistory.map(u => `
-                <div class="pocket-tx-item">
-                  <span>- ${u.title} (${u.date})</span>
-                  <span>${u.amount.toLocaleString()}원</span>
-                </div>
-              `).join('');
-            } else {
-              usageListHtml = `<div class="pocket-tx-item" style="color:#9AA5B1;">아직 사용한 내역이 없습니다.</div>`;
-            }
-
-            return `
-              <div class="pocket-box">
-                <div class="pocket-header">
-                  <span>📥 [${tf.fromCardName}]로부터 이체받은 돈</span>
-                  <span>잔여: ${remain.toLocaleString()}원 / ${tf.amount.toLocaleString()}원</span>
-                </div>
-                <div class="pocket-progress">
-                  <div class="pocket-progress-fill" style="width: ${percent}%;"></div>
-                </div>
-                <div style="font-size:0.7rem; font-weight:700; color:var(--text-sub); margin-top:4px; margin-bottom:2px;">↳ 이 돈의 사용 기록:</div>
-                ${usageListHtml}
-              </div>
-            `;
-          }).join('');
-        }
-
-        return `
-          <div class="card-box">
-            <div class="card-title">${c.name}</div>
-            <div class="card-amount">${c.balance.toLocaleString()}원</div>
-            <div class="card-detail">총 지출: ${c.totalSpent.toLocaleString()}원</div>
-            ${pocketsHtml}
-          </div>
-        `;
-      }).join('');
-
-      txCard.innerHTML = options;
-      fromCard.innerHTML = options;
-      toCard.innerHTML = options;
-      recCard.innerHTML = options;
-      updateFundSourceOptions();
-    }
-
-    function updateFundSourceOptions() {
-      const cardId = document.getElementById('txCard').value;
-      const fundSourceSelect = document.getElementById('fundSource');
-      const targetCard = cards.find(c => c.id === cardId);
-      if (!targetCard) return;
-
-      let optionsHtml = `<option value="BASE">일반 잔액에서 결제</option>`;
-      if (targetCard.transfers && targetCard.transfers.length > 0) {
-        targetCard.transfers.forEach(tf => {
-          const remain = tf.amount - tf.used;
-          if (remain > 0) {
-            optionsHtml += `<option value="${tf.id}">[이체금] ${tf.fromCardName}에게 받은 돈 (잔여 ${remain.toLocaleString()}원)</option>`;
+      if (editingTxId !== null) {
+        transactions = transactions.map(t => {
+          if (t.id === editingTxId) {
+            return {
+              ...t,
+              type: currentType,
+              amount: amount,
+              category: category,
+              card: card,
+              memo: memo,
+              pocketId: currentSelectedPocketId
+            };
           }
+          return t;
+        });
+      } else {
+        transactions.push({
+          id: Date.now(),
+          date: selectedDateStr,
+          type: currentType,
+          amount: amount,
+          category: category,
+          card: card,
+          memo: memo,
+          pocketId: currentSelectedPocketId
         });
       }
-      fundSourceSelect.innerHTML = optionsHtml;
-    }
 
-    function openBudgetModal() {
-      document.getElementById('budgetModal').classList.add('open');
-      loadBudgetInputForMonth();
-      loadBudgetInputForWeek();
-      renderModalMonthHistory();
-      renderModalWeekHistory();
-    }
-
-    function setBudgetModalTab(tab) {
-      const bMonth = document.getElementById('btnBudgetTabMonth');
-      const bWeek = document.getElementById('btnBudgetTabWeek');
-      const formMonth = document.getElementById('budgetMonthForm');
-      const formWeek = document.getElementById('budgetWeekForm');
-
-      if (tab === 'month') {
-        bMonth.style.background = 'var(--notepad-top)';
-        bWeek.style.background = '#BCAAA4';
-        formMonth.style.display = 'block';
-        formWeek.style.display = 'none';
-      } else {
-        bWeek.style.background = 'var(--notepad-top)';
-        bMonth.style.background = '#BCAAA4';
-        formMonth.style.display = 'none';
-        formWeek.style.display = 'block';
-      }
-    }
-
-    function loadBudgetInputForMonth() {
-      const m = document.getElementById('modalMonthSelect').value;
-      document.getElementById('modalMonthAmount').value = monthlyBudgets[m] || '';
-    }
-
-    function saveMonthBudgetFromModal() {
-      const m = document.getElementById('modalMonthSelect').value;
-      const amt = parseInt(document.getElementById('modalMonthAmount').value);
-      if (!m) return alert('월을 선택하세요.');
-      if (isNaN(amt) || amt < 0) return alert('올바른 예산 금액을 입력하세요.');
-
-      monthlyBudgets[m] = amt;
-      alert(`[${m}] 월 예산이 ${amt.toLocaleString()}원으로 설정되었습니다.`);
-      renderModalMonthHistory();
-      saveData();
-    }
-
-    function renderModalMonthHistory() {
-      const el = document.getElementById('modalMonthHistoryList');
-      const months = Object.keys(monthlyBudgets).sort().reverse();
-      if (months.length === 0) {
-        el.innerHTML = `<div style="font-size:0.75rem; color:var(--text-sub); padding:4px 0;">설정된 월 예산이 없습니다.</div>`;
-        return;
-      }
-
-      el.innerHTML = months.map(m => {
-        const b = monthlyBudgets[m];
-        const spent = transactions
-          .filter(t => t.type === 'EXPENSE' && t.date.startsWith(m))
-          .reduce((s, t) => s + t.amount, 0);
-        const isOver = spent > b;
-
-        return `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dotted #D7CCC8; font-size:0.75rem;">
-            <div>
-              <span style="font-weight:700;">${m}</span>
-              <span style="font-size:0.68rem; color:var(--text-sub);"> (지출: ${spent.toLocaleString()}원)</span>
-            </div>
-            <div style="font-weight:700; ${isOver ? 'color:var(--accent);' : 'color:var(--income);'}">
-              ${b.toLocaleString()}원 ${isOver ? '(초과 ⚠️)' : '(달성 ✅)'}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function loadBudgetInputForWeek() {
-      const m = document.getElementById('modalWeekMonthSelect').value;
-      const wIdx = document.getElementById('modalWeekIndexSelect').value;
-      const key = `${m}-W${wIdx}`;
-      document.getElementById('modalWeekAmount').value = weeklyBudgets[key] || '';
-    }
-
-    function saveWeekBudgetFromModal() {
-      const m = document.getElementById('modalWeekMonthSelect').value;
-      const wIdx = document.getElementById('modalWeekIndexSelect').value;
-      const amt = parseInt(document.getElementById('modalWeekAmount').value);
-      if (!m || !wIdx) return alert('월과 주차를 선택하세요.');
-      if (isNaN(amt) || amt < 0) return alert('올바른 예산 금액을 입력하세요.');
-
-      const key = `${m}-W${wIdx}`;
-      weeklyBudgets[key] = amt;
-      alert(`[${m} ${wIdx}주차] 예산이 ${amt.toLocaleString()}원으로 설정되었습니다.`);
-      renderModalWeekHistory();
-      saveData();
-    }
-
-    function renderModalWeekHistory() {
-      const el = document.getElementById('modalWeekHistoryList');
-      const keys = Object.keys(weeklyBudgets).sort().reverse();
-      if (keys.length === 0) {
-        el.innerHTML = `<div style="font-size:0.75rem; color:var(--text-sub); padding:4px 0;">설정된 주별 예산이 없습니다.</div>`;
-        return;
-      }
-
-      el.innerHTML = keys.map(k => {
-        const b = weeklyBudgets[k];
-        const parts = k.split('-W');
-        const ym = parts[0];
-        const wIdx = parseInt(parts[1]);
-        const range = getMonthWeekRange(ym, wIdx);
-
-        const spent = transactions
-          .filter(t => t.type === 'EXPENSE' && t.date >= range.start && t.date <= range.end)
-          .reduce((s, t) => s + t.amount, 0);
-        const isOver = spent > b;
-
-        return `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dotted #D7CCC8; font-size:0.75rem;">
-            <div>
-              <span style="font-weight:700;">${ym} ${wIdx}주차</span>
-              <span style="font-size:0.68rem; color:var(--text-sub);"> (${range.start.slice(5)}~${range.end.slice(5)} / 지출: ${spent.toLocaleString()}원)</span>
-            </div>
-            <div style="font-weight:700; ${isOver ? 'color:var(--accent);' : 'color:var(--income);'}">
-              ${b.toLocaleString()}원 ${isOver ? '(초과 ⚠️)' : '(달성 ✅)'}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function renderRecurringList() {
-      const el = document.getElementById('recurringList');
-      if (recurringRules.length === 0) {
-        el.innerHTML = `<div style="font-size:0.75rem; color:var(--text-sub); padding:6px 0;">등록된 고정지출이 없습니다.</div>`;
-        return;
-      }
-      el.innerHTML = recurringRules.map((r, idx) => {
-        const c = cards.find(x => x.id === r.cardId);
-        return `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dotted #D7CCC8; font-size:0.75rem;">
-            <div>
-              <span style="font-weight:700;">${r.title}</span> (매월 ${r.day}일)
-              <div style="font-size:0.68rem; color:var(--text-sub);">${c ? c.name : ''}</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="font-weight:700;">${r.amount.toLocaleString()}원</span>
-              <button onclick="deleteRecurring(${idx})" style="border:none; background:none; color:var(--accent); cursor:pointer;">✕</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function applyRecurringThisMonth() {
-      let count = 0;
-      recurringRules.forEach(r => {
-        const fullDate = `${curYearMonth}-${String(r.day).padStart(2, '0')}`;
-        const exists = transactions.some(t => t.date === fullDate && t.title === r.title && t.amount === r.amount);
-        if (!exists) {
-          const targetCard = cards.find(c => c.id === r.cardId);
-          if (targetCard) {
-            targetCard.balance -= r.amount;
-            targetCard.totalSpent += r.amount;
-          }
-          transactions.unshift({
-            id: 'tx_' + Date.now() + Math.random(),
-            type: 'EXPENSE',
-            date: fullDate,
-            cardId: r.cardId,
-            category: r.category || '고정지출 📅',
-            title: r.title,
-            amount: r.amount
-          });
-          count++;
-        }
-      });
-      alert(`${count}개의 고정지출이 이번 달 내역에 반영되었습니다.`);
-      saveData();
-    }
-
-    function openEditModal(txId) {
-      const tx = transactions.find(t => t.id === txId);
-      if (!tx || tx.type === 'TRANSFER') return;
-
-      document.getElementById('editTxId').value = tx.id;
-      document.getElementById('editTxDate').value = tx.date;
-      document.getElementById('editTxCategory').value = tx.category;
-      document.getElementById('editTxTitle').value = tx.title;
-      document.getElementById('editTxAmount').value = tx.amount;
-
-      document.getElementById('editModal').classList.add('open');
-    }
-
-    function updateTransaction() {
-      const id = document.getElementById('editTxId').value;
-      const date = document.getElementById('editTxDate').value;
-      const category = document.getElementById('editTxCategory').value;
-      const title = document.getElementById('editTxTitle').value.trim();
-      const newAmount = parseInt(document.getElementById('editTxAmount').value);
-
-      if (!newAmount || newAmount <= 0) return alert('올바른 금액을 입력하세요.');
-
-      const tx = transactions.find(t => t.id === id);
-      const targetCard = cards.find(c => c.id === tx.cardId);
-
-      const diff = newAmount - tx.amount;
-      if (tx.type === 'EXPENSE') {
-        targetCard.balance -= diff;
-        targetCard.totalSpent += diff;
-      } else {
-        targetCard.balance += diff;
-      }
-
-      tx.date = date;
-      tx.category = category;
-      tx.title = title;
-      tx.amount = newAmount;
-
-      closeModal('editModal');
-      saveData();
-    }
-
-    function deleteCurrentTx() {
-      if (!confirm('이 내역을 삭제하시겠습니까? 카드 잔액이 복구됩니다.')) return;
-      const id = document.getElementById('editTxId').value;
-      const tx = transactions.find(t => t.id === id);
-      const targetCard = cards.find(c => c.id === tx.cardId);
-
-      if (tx.type === 'EXPENSE') {
-        targetCard.balance += tx.amount;
-        targetCard.totalSpent -= tx.amount;
-      } else {
-        targetCard.balance += tx.amount;
-      }
-
-      transactions = transactions.filter(t => t.id !== id);
-      closeModal('editModal');
-      saveData();
-    }
-
-    function saveTransaction() {
-      const date = document.getElementById('txDate').value;
-      const cardId = document.getElementById('txCard').value;
-      const fundSourceId = document.getElementById('fundSource').value;
+      safeStorage.setItem('money_tx_list', JSON.stringify(transactions));
       
-      const category = currentSelectedCategory;
-      const title = document.getElementById('txTitle').value.trim() || '내역';
-      const amount = parseInt(document.getElementById('txAmount').value);
+      editingTxId = null;
+      currentSelectedPocketId = null;
+      amountInput.value = '';
+      memoInput.value = '';
+      memoInput.style.height = '38px';
+      formSection.classList.add('hidden');
+      btnOpenForm.classList.remove('hidden');
 
-      if (!amount || amount <= 0) return alert('금액을 입력하세요.');
+      renderModalTxList();
+      renderCalendar();
+      renderManageTab();
+    });
 
-      const targetCard = cards.find(c => c.id === cardId);
-      let transferTag = '';
+    function renderModalTxList() {
+      const dayTxs = transactions.filter(t => t.date === selectedDateStr);
+      modalTxItems.innerHTML = '';
 
-      if (currentType === 'EXPENSE') {
-        targetCard.balance -= amount;
-        targetCard.totalSpent += amount;
+      if (dayTxs.length === 0) {
+        modalTxItems.innerHTML = '<p style="font-size: 0.8rem; color: #94a3b8; text-align: center; padding: 24px 0;">등록된 내역이 없습니다.</p>';
+        return;
+      }
 
-        if (fundSourceId !== 'BASE') {
-          const pocket = targetCard.transfers.find(tf => tf.id === fundSourceId);
-          if (pocket) {
-            pocket.used += amount;
-            if (!pocket.usageHistory) pocket.usageHistory = [];
-            pocket.usageHistory.push({ title, amount, date });
-            transferTag = `${pocket.fromCardName} 이체금 사용`;
-          }
+      dayTxs.forEach(t => {
+        const isExp = t.type === 'expense';
+        const isPocket = !!t.pocketId;
+        const row = document.createElement('div');
+        row.className = 'tx-item';
+        row.addEventListener('click', () => editTx(t.id));
+
+        row.innerHTML = `
+          <div class="tx-item-left">
+            <span class="tx-memo">${escapeHtml(t.memo)}</span>
+            <div class="tx-tags">
+              ${isExp && t.category ? `<span class="tx-tag">${escapeHtml(t.category)}</span>` : ''}
+              <span class="tx-tag ${isPocket ? 'pocket' : ''}">${escapeHtml(t.card || '기타')}</span>
+            </div>
+          </div>
+          <div class="tx-item-right">
+            <span class="tx-val ${isExp ? 'exp' : 'inc'}">${isExp ? '-' : '+'}${t.amount.toLocaleString()}원</span>
+            <button class="btn-del" onclick="deleteTx(${t.id}, event)">✕</button>
+          </div>
+        `;
+        modalTxItems.appendChild(row);
+      });
+    }
+
+    window.deleteTx = function(id, e) {
+      e.stopPropagation();
+      if (confirm('이 내역을 삭제하시겠습니까?')) {
+        const target = transactions.find(t => t.id === id);
+        if (target && target.pocketId) {
+          pockets = pockets.map(p => p.id === target.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - target.amount) } : p);
+          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
         }
-      } else {
-        targetCard.balance += amount;
+
+        transactions = transactions.filter(t => t.id !== id);
+        safeStorage.setItem('money_tx_list', JSON.stringify(transactions));
+        
+        if (editingTxId === id) {
+          editingTxId = null;
+          formSection.classList.add('hidden');
+          btnOpenForm.classList.remove('hidden');
+        }
+
+        renderModalTxList();
+        renderCalendar();
+        renderManageTab();
       }
+    };
 
-      transactions.unshift({
-        id: 'tx_' + Date.now(),
-        type: currentType,
-        date,
-        cardId,
-        category,
-        title,
-        amount,
-        transferTag
+    // --- 8. 2번 탭(통계) & 4번 탭(환경설정) ---
+    function renderStats() {
+      const now = new Date();
+      const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      let inc = 0;
+      let exp = 0;
+
+      transactions.forEach(t => {
+        if (t.date.startsWith(prefix)) {
+          if (t.type === 'income') inc += t.amount;
+          if (t.type === 'expense') exp += t.amount;
+        }
       });
 
-      closeModal('addModal');
-      document.getElementById('txAmount').value = '';
-      document.getElementById('txTitle').value = '';
-      saveData();
+      document.getElementById('statIncome').innerText = `+${inc.toLocaleString()}원`;
+      document.getElementById('statExpense').innerText = `-${exp.toLocaleString()}원`;
+      const net = inc - exp;
+      const netEl = document.getElementById('statNet');
+      netEl.innerText = `${net >= 0 ? '+' : ''}${net.toLocaleString()}원`;
+      netEl.style.color = net >= 0 ? 'var(--income)' : 'var(--expense)';
     }
 
-    function processTransfer() {
-      const fromId = document.getElementById('fromCard').value;
-      const toId = document.getElementById('toCard').value;
-      const amount = parseInt(document.getElementById('transferAmount').value);
-
-      if (fromId === toId) return alert('서로 다른 카드를 선택하세요.');
-      if (!amount || amount <= 0) return alert('이체 금액을 입력하세요.');
-
-      const from = cards.find(c => c.id === fromId);
-      const to = cards.find(c => c.id === toId);
-
-      from.balance -= amount;
-      to.balance += amount;
-
-      if (!to.transfers) to.transfers = [];
-      to.transfers.push({
-        id: 'tf_' + Date.now(),
-        fromCardName: from.name,
-        amount: amount,
-        used: 0,
-        usageHistory: []
-      });
-
-      transactions.unshift({
-        id: 'tx_' + Date.now(),
-        type: 'TRANSFER',
-        date: today,
-        cardId: fromId,
-        toCardId: toId,
-        category: '이체 ⇄',
-        title: `${from.name} → ${to.name}`,
-        amount
-      });
-
-      closeModal('transferModal');
-      document.getElementById('transferAmount').value = '';
-      saveData();
-    }
-
-    function saveNewCard() {
-      const name = document.getElementById('newCardName').value.trim();
-      const balance = parseInt(document.getElementById('newCardBalance').value) || 0;
-      if (!name) return alert('카드명을 입력하세요.');
-
-      cards.push({ id: 'c_' + Date.now(), name, balance, totalSpent: 0, transfers: [] });
-      closeModal('cardAddModal');
-      document.getElementById('newCardName').value = '';
-      document.getElementById('newCardBalance').value = '';
-      saveData();
-    }
-
-    function saveRecurring() {
-      const title = document.getElementById('recTitle').value.trim();
-      const day = parseInt(document.getElementById('recDay').value);
-      const cardId = document.getElementById('recCard').value;
-      const amount = parseInt(document.getElementById('recAmount').value);
-
-      if (!title || !day || !amount) return alert('모든 항목을 입력하세요.');
-      recurringRules.push({ id: 'r_' + Date.now(), title, day, cardId, amount, category: '고정지출 📅' });
-      closeModal('recurringModal');
-      document.getElementById('recTitle').value = '';
-      document.getElementById('recAmount').value = '';
-      saveData();
-    }
-
-    function deleteRecurring(idx) {
-      recurringRules.splice(idx, 1);
-      saveData();
-    }
-
-    function resetAllData() {
-      if (confirm('정말로 모든 가계부 데이터를 초기화하시겠습니까?')) {
-        localStorage.clear();
-        location.reload();
+    document.getElementById('btnClearAll').addEventListener('click', () => {
+      if (confirm('가계부의 모든 데이터(내역, 고정지출, 이동금)를 초기화하시겠습니까?')) {
+        transactions = [];
+        fixedList = [];
+        pockets = [];
+        safeStorage.removeItem('money_tx_list');
+        safeStorage.removeItem('money_fixed_list');
+        safeStorage.removeItem('money_pockets');
+        renderCalendar();
+        renderManageTab();
+        alert('모든 데이터가 초기화되었습니다.');
       }
+    });
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    function openAddModal() {
-      document.getElementById('addModal').classList.add('open');
-      document.getElementById('catDropdownPanel').style.display = 'none';
-      updateFundSourceOptions();
-      updateCategoryUI();
-    }
-    function openTransferModal() { document.getElementById('transferModal').classList.add('open'); }
-    function openCardAddModal() { document.getElementById('cardAddModal').classList.add('open'); }
-    function openRecurringModal() { document.getElementById('recurringModal').classList.add('open'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    });
 
-    function setType(type) {
-      currentType = type;
-      document.getElementById('typeExp').style.background = type === 'EXPENSE' ? 'var(--accent)' : '#BCAAA4';
-      document.getElementById('typeInc').style.background = type === 'INCOME' ? 'var(--income)' : '#BCAAA4';
-      document.getElementById('fundSourceGroup').style.display = type === 'EXPENSE' ? 'block' : 'none';
-    }
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    });
 
-    renderAll();
+    // 시작 렌더링
+    updateCategoryUI();
+    updateCardUI();
+    renderCalendar();
   </script>
 </body>
 </html>
