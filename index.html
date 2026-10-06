@@ -318,7 +318,6 @@
       font-weight: 600;
     }
 
-    /* 고정지출 2행 모바일 최적화 폼 */
     .mobile-fixed-form {
       display: flex;
       flex-direction: column;
@@ -716,7 +715,7 @@
 
         <div class="manage-view-container">
           
-          <!-- 상세 1: 고정지출 (1행 항목:금액:카드 = 1:1:0.5) -->
+          <!-- 상세 1: 고정지출 (항목:금액:카드 = 1:1:0.5) -->
           <div class="manage-page active" id="pageFixed">
             <div class="page-header">
               <h3>고정지출 목록</h3>
@@ -726,7 +725,7 @@
             <div class="fixed-list" id="manageFixedList"></div>
 
             <div class="mobile-fixed-form">
-              <!-- 1행: 항목(1) : 금액(1) : 카드선택(0.5) -->
+              <!-- 1행: 항목(1) : 금액(1) : 카드(0.5) -->
               <div class="mobile-grid-row">
                 <input type="text" id="addFixedDesc" class="input-base" placeholder="항목명" style="flex:1;" />
                 <input type="text" id="addFixedAmount" class="input-base" placeholder="금액" style="flex:1;" inputmode="numeric" />
@@ -794,7 +793,7 @@
 
             <div class="pocket-list" id="pocketListContainer"></div>
 
-            <!-- 새 금액 이동 및 충전 등록 (날짜 0.8, 금액 1.4 모바일 최적화) -->
+            <!-- 새 금액 이동 및 충전 등록 (날짜 0.8, 금액 1.4) -->
             <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 9px; border-radius: 8px; margin-top: 6px;">
               <span style="font-size: 0.75rem; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">+ 새 금액 이동 및 충전 등록</span>
               
@@ -1125,9 +1124,8 @@
       return raw.replace(/->/g, '➔');
     }
 
-    // [핵심] 월별 완전 독립 정산 함수 (월 단위 계단식 이월금 산출)
+    // [전체 월 완벽 독립 체인 정산 로직]
     function getPocketMonthlyAccounting(pkt, targetPrefix) {
-      // 1. 주머니 충전/지출에 관련된 모든 월 키 추출
       let monthsSet = new Set();
       if (pkt.history) {
         pkt.history.forEach(h => {
@@ -1148,7 +1146,6 @@
       for (let m of sortedMonths) {
         if (m > targetPrefix) break;
 
-        // 해당 월에 순수 충전된 금액
         let mTotal = 0;
         let mHist = [];
         if (pkt.history) {
@@ -1161,7 +1158,6 @@
           });
         }
 
-        // 해당 월에 발생한 순수 지출
         let mUsed = 0;
         transactions.forEach(t => {
           if (t.date && t.date.startsWith(m) && t.type === 'expense') {
@@ -1206,7 +1202,7 @@
           break;
         }
 
-        // 전달 것은 전달에서 끝나고, 오직 남은 잔액만 다음 달의 시작 이월금으로 넘어감
+        // 전달 것은 전달에서 마감되고, 남은 잔액만 다음 달 시작 금액으로 이월
         lastCarryOver = remain;
       }
 
@@ -1527,7 +1523,7 @@
       });
     }
 
-    // [핵심] 해당 월에 실제 활동(충전, 사용, 이월금 잔액)이 있는 주머니만 표시
+    // [핵심] 실제 활동이 없으면 새 달에는 주머니가 나타나지 않고, 삭제 시 이전 달은 유지
     function renderPocketList() {
       const pocketContainer = document.getElementById('pocketListContainer');
       pocketContainer.innerHTML = '';
@@ -1542,13 +1538,11 @@
       let renderedCount = 0;
 
       pockets.forEach(pk => {
-        // 삭제 이력 체크
         if (pk.deletedAfterMonth && pk.deletedAfterMonth <= prefix) return;
 
-        // 월별 독립 정산 데이터 추출
         const acc = getPocketMonthlyAccounting(pk, prefix);
 
-        // 새로운 달 시작 전 아무런 거래/이월금이 없으면 나타나지 않음
+        // 활동 없는 빈 달은 자동 숨김
         if (acc.carryOver === 0 && acc.monthTotal === 0 && acc.monthUsed === 0 && acc.remain === 0) {
           return;
         }
@@ -1625,6 +1619,7 @@
       }
     }
 
+    // 팝업 없이 해당 월 및 이후에서만 주머니 종료 (이전 달은 영구 보존)
     window.deletePocketNow = function(pocketId) {
       const pYear = pocketViewDate.getFullYear();
       const pMonth = pocketViewDate.getMonth() + 1;
@@ -2661,6 +2656,7 @@
       document.getElementById('dayModal').classList.add('hidden');
     });
 
+    // [핵심] 수입 분할 충전 시 트랜잭션 ID와 연결된 히스토리 생성
     document.getElementById('btnSaveTx').addEventListener('click', () => {
       const amount = parseRawNumber(document.getElementById('amountInput').value);
       const memo = document.getElementById('memoInput').value.trim() || (currentType === 'expense' ? '지출' : '수입');
@@ -2672,43 +2668,21 @@
         return;
       }
 
+      // 수정 모드인 경우: 이전 기록이 수입 충전이었으면 기존 주머니 히스토리 청소
       if (editingTxId !== null) {
         const oldTx = transactions.find(t => t.id === editingTxId);
-        if (oldTx) {
-          if (oldTx.type === 'expense') {
-            if (oldTx.splitDetails) {
-              oldTx.splitDetails.forEach(sd => {
-                if (sd.type === 'pocket') {
-                  pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: Math.max(0, p.usedAmount - sd.amount) } : p);
-                }
-              });
-            } else if (oldTx.pocketId && oldTx.pocketId !== 'CUSTOM_SPLIT') {
-              pockets = pockets.map(p => p.id === oldTx.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - oldTx.amount) } : p);
-            }
-          }
-        }
-      }
-
-      if (currentType === 'expense') {
-        if (currentSelectedPocketId === 'CUSTOM_SPLIT' && appliedSplits) {
-          appliedSplits.forEach(sd => {
-            if (sd.type === 'pocket') {
-              pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: p.usedAmount + sd.amount } : p);
+        if (oldTx && oldTx.type === 'income' && oldTx.incomeSplitDetails) {
+          pockets.forEach(pkt => {
+            if (pkt.history) {
+              pkt.history = pkt.history.filter(h => h.txId !== editingTxId);
             }
           });
-          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-          card = '복합 분할 결제';
-        } else if (currentSelectedPocketId) {
-          const targetPkt = pockets.find(p => p.id === currentSelectedPocketId);
-          if (targetPkt) {
-            targetPkt.usedAmount += amount;
-            safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-          }
         }
       }
 
-      // [수입 쪼개기] 저장 시 정확한 해당 날짜(해당 월)에 충전 히스토리 기록
+      const txId = editingTxId !== null ? editingTxId : Date.now();
       let finalIncomeSplits = null;
+
       if (currentType === 'income') {
         if (incomeSplitDetails && incomeSplitDetails.length > 0) {
           card = '수입 분할 충전';
@@ -2721,6 +2695,7 @@
 
             const newHistoryEntry = {
               id: 'h_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+              txId: txId, // 트랜잭션과 직접 연결
               date: selectedDateStr,
               amount: sd.amount
             };
@@ -2766,7 +2741,7 @@
         });
       } else {
         transactions.push({
-          id: Date.now(),
+          id: txId,
           date: selectedDateStr,
           type: currentType,
           amount: amount,
@@ -2846,10 +2821,22 @@
       });
     }
 
+    // [핵심] 달력 내역 삭제 시, 주머니 충전 기록까지 한 번에 완전히 청소
     window.deleteTx = function(id, e) {
       e.stopPropagation();
       const target = transactions.find(t => t.id === id);
       if (target) {
+        // 수입 분할 충전 내역 삭제 시: 주머니의 충전 히스토리도 함께 즉시 제거
+        if (target.type === 'income' && target.incomeSplitDetails) {
+          pockets.forEach(pkt => {
+            if (pkt.history) {
+              pkt.history = pkt.history.filter(h => h.txId !== id);
+            }
+          });
+          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+        }
+
+        // 지출 분할 결제 삭제 시 포켓 사용량 차감 복원
         if (target.type === 'expense') {
           if (target.splitDetails) {
             target.splitDetails.forEach(sd => {
