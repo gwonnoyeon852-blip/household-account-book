@@ -318,7 +318,7 @@
       font-weight: 600;
     }
 
-    /* 1. 고정지출 모바일 전용 2행 폼 */
+    /* 고정지출 2행 모바일 최적화 폼 */
     .mobile-fixed-form {
       display: flex;
       flex-direction: column;
@@ -365,7 +365,6 @@
     .pocket-progress-bg { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 2px; }
     .pocket-progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
 
-    /* 입력창 및 셀렉트 공통 */
     .input-base {
       padding: 7px 8px;
       font-size: 0.78rem;
@@ -536,7 +535,6 @@
 
     .select-arrow { font-size: 0.65rem; color: var(--text-muted); pointer-events: none; flex-shrink: 0; }
 
-    /* 드롭다운: 모바일 뷰 최적화 */
     .custom-dropdown {
       position: absolute;
       top: 100%;
@@ -718,7 +716,7 @@
 
         <div class="manage-view-container">
           
-          <!-- 상세 1: 고정지출 (1행: 항목,금액,카드선택 / 2행: 날짜,메모,추가) -->
+          <!-- 상세 1: 고정지출 (1행 항목:금액:카드 = 1:1:0.5) -->
           <div class="manage-page active" id="pageFixed">
             <div class="page-header">
               <h3>고정지출 목록</h3>
@@ -728,13 +726,13 @@
             <div class="fixed-list" id="manageFixedList"></div>
 
             <div class="mobile-fixed-form">
-              <!-- 1행: 항목, 금액, 카드선택 -->
+              <!-- 1행: 항목(1) : 금액(1) : 카드선택(0.5) -->
               <div class="mobile-grid-row">
                 <input type="text" id="addFixedDesc" class="input-base" placeholder="항목명" style="flex:1;" />
-                <input type="text" id="addFixedAmount" class="input-base" placeholder="금액 (원)" style="flex:1;" inputmode="numeric" />
+                <input type="text" id="addFixedAmount" class="input-base" placeholder="금액" style="flex:1;" inputmode="numeric" />
                 <div class="custom-select-wrap" id="fixedCardWrap" style="flex:0.5;">
                   <button type="button" class="btn-select-trigger" id="btnFixedCardTrigger">
-                    <span id="selectedFixedCardLabel" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">출금카드</span>
+                    <span id="selectedFixedCardLabel" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">카드</span>
                     <span class="select-arrow">▾</span>
                   </button>
                   <div class="custom-dropdown hidden" id="fixedCardDropdown">
@@ -755,7 +753,7 @@
                   <option value="말일">말일</option>
                 </select>
                 <input type="text" id="addFixedMemo" class="input-base" placeholder="메모 (예: 자동이체)" style="flex:1;" />
-                <button type="button" id="btnAddFixed" class="btn-action-primary" style="width: 62px;">추가</button>
+                <button type="button" id="btnAddFixed" class="btn-action-primary" style="width: 60px;">추가</button>
               </div>
             </div>
           </div>
@@ -796,7 +794,7 @@
 
             <div class="pocket-list" id="pocketListContainer"></div>
 
-            <!-- 새 금액 이동 및 충전 등록 (모바일 화면 튕김 방지 정돈) -->
+            <!-- 새 금액 이동 및 충전 등록 (날짜 0.8, 금액 1.4 모바일 최적화) -->
             <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 9px; border-radius: 8px; margin-top: 6px;">
               <span style="font-size: 0.75rem; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">+ 새 금액 이동 및 충전 등록</span>
               
@@ -808,7 +806,7 @@
                 </div>
                 
                 <div style="display:flex; gap:5px; width:100%; align-items:center;">
-                  <input type="date" id="pocketDateInput" class="input-base" style="flex:0.8; padding: 7px 4px; font-size: 0.75rem;" />
+                  <input type="date" id="pocketDateInput" class="input-base" style="flex:0.8; padding:7px 4px; font-size:0.75rem;" />
                   <input type="text" id="pocketAmount" class="input-base" placeholder="금액 (원)" inputmode="numeric" style="flex:1.4;" />
                   <button type="button" id="btnCreatePocket" class="btn-action-primary" style="width: 58px;">등록</button>
                 </div>
@@ -1127,59 +1125,104 @@
       return raw.replace(/->/g, '➔');
     }
 
-    function getPocketBalanceAtMonth(targetPocket, prefix) {
-      let prevCarryOver = 0;
-      let monthTotal = 0;
-      let monthUsed = 0;
-
-      if (targetPocket.history) {
-        targetPocket.history.forEach(h => {
-          const hDate = (h.date || getTodayYMD()).split(' ')[0];
-          if (hDate.startsWith(prefix)) {
-            monthTotal += h.amount;
-          } else if (hDate < prefix) {
-            prevCarryOver += h.amount;
-          }
+    // [핵심] 월별 완전 독립 정산 함수 (월 단위 계단식 이월금 산출)
+    function getPocketMonthlyAccounting(pkt, targetPrefix) {
+      // 1. 주머니 충전/지출에 관련된 모든 월 키 추출
+      let monthsSet = new Set();
+      if (pkt.history) {
+        pkt.history.forEach(h => {
+          const m = (h.date || '').substring(0, 7);
+          if (m) monthsSet.add(m);
         });
       }
-
       transactions.forEach(t => {
-        if (t.date && t.type === 'expense') {
-          const tMonth = t.date.substring(0, 7);
-          const applyExpense = (amt) => {
-            if (tMonth < prefix) prevCarryOver -= amt;
-            else if (tMonth === prefix) monthUsed += amt;
-          };
-
-          if (t.splitDetails && t.splitDetails.length > 0) {
-            t.splitDetails.forEach(sd => {
-              if (sd.type === 'pocket' && (sd.id === targetPocket.id || cleanRouteLabel(sd.name) === cleanRouteLabel(targetPocket.name))) {
-                applyExpense(sd.amount);
-              }
-            });
-          } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
-            if (Number(t.pocketId) === Number(targetPocket.id)) {
-              applyExpense(t.amount);
-            }
-          }
-        }
+        const m = (t.date || '').substring(0, 7);
+        if (m) monthsSet.add(m);
       });
+      monthsSet.add(targetPrefix);
 
-      fixedList.forEach(item => {
-        if (item.pocketId === 'CUSTOM_SPLIT' && item.splitDetails) {
-          item.splitDetails.forEach(sd => {
-            if (sd.type === 'pocket' && (sd.id === targetPocket.id || cleanRouteLabel(sd.name) === cleanRouteLabel(targetPocket.name))) {
-              monthUsed += sd.amount;
+      const sortedMonths = Array.from(monthsSet).sort();
+      let lastCarryOver = 0;
+      let targetStats = null;
+
+      for (let m of sortedMonths) {
+        if (m > targetPrefix) break;
+
+        // 해당 월에 순수 충전된 금액
+        let mTotal = 0;
+        let mHist = [];
+        if (pkt.history) {
+          pkt.history.forEach(h => {
+            const hDate = (h.date || getTodayYMD()).split(' ')[0];
+            if (hDate.startsWith(m)) {
+              mTotal += h.amount;
+              mHist.push({ ...h, pocketId: pkt.id });
             }
           });
-        } else if (item.pocketId && Number(item.pocketId) === Number(targetPocket.id)) {
-          monthUsed += item.amount;
         }
-      });
 
-      const carryOver = Math.max(0, prevCarryOver);
-      const totalAvail = carryOver + monthTotal;
-      return Math.max(0, totalAvail - monthUsed);
+        // 해당 월에 발생한 순수 지출
+        let mUsed = 0;
+        transactions.forEach(t => {
+          if (t.date && t.date.startsWith(m) && t.type === 'expense') {
+            if (t.splitDetails && t.splitDetails.length > 0) {
+              t.splitDetails.forEach(sd => {
+                if (sd.type === 'pocket' && (sd.id === pkt.id || cleanRouteLabel(sd.name) === cleanRouteLabel(pkt.name))) {
+                  mUsed += sd.amount;
+                }
+              });
+            } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
+              if (Number(t.pocketId) === Number(pkt.id)) {
+                mUsed += t.amount;
+              }
+            }
+          }
+        });
+
+        fixedList.forEach(item => {
+          if (item.pocketId === 'CUSTOM_SPLIT' && item.splitDetails) {
+            item.splitDetails.forEach(sd => {
+              if (sd.type === 'pocket' && (sd.id === pkt.id || cleanRouteLabel(sd.name) === cleanRouteLabel(pkt.name))) {
+                mUsed += sd.amount;
+              }
+            });
+          } else if (item.pocketId && Number(item.pocketId) === Number(pkt.id)) {
+            mUsed += item.amount;
+          }
+        });
+
+        let totalAvail = lastCarryOver + mTotal;
+        let remain = Math.max(0, totalAvail - mUsed);
+
+        if (m === targetPrefix) {
+          targetStats = {
+            carryOver: lastCarryOver,
+            monthTotal: mTotal,
+            monthUsed: mUsed,
+            totalAvail: totalAvail,
+            remain: remain,
+            history: mHist
+          };
+          break;
+        }
+
+        // 전달 것은 전달에서 끝나고, 오직 남은 잔액만 다음 달의 시작 이월금으로 넘어감
+        lastCarryOver = remain;
+      }
+
+      return targetStats || {
+        carryOver: 0,
+        monthTotal: 0,
+        monthUsed: 0,
+        totalAvail: 0,
+        remain: 0,
+        history: []
+      };
+    }
+
+    function getPocketBalanceAtMonth(targetPocket, prefix) {
+      const acc = getPocketMonthlyAccounting(targetPocket, prefix);
+      return acc.remain;
     }
 
     function getMonthCombinedTransactions(yearMonthPrefix) {
@@ -1484,6 +1527,7 @@
       });
     }
 
+    // [핵심] 해당 월에 실제 활동(충전, 사용, 이월금 잔액)이 있는 주머니만 표시
     function renderPocketList() {
       const pocketContainer = document.getElementById('pocketListContainer');
       pocketContainer.innerHTML = '';
@@ -1495,76 +1539,29 @@
 
       document.getElementById('pocketMonthTitle').innerText = pMonthStr;
 
-      const activePockets = pockets.filter(pkt => !pkt.deletedAfterMonth || pkt.deletedAfterMonth > prefix);
+      let renderedCount = 0;
 
-      if (activePockets.length === 0) {
-        pocketContainer.innerHTML = `<p style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:10px 0;">${pMonthStr}에 등록된 이동금 현황이 없습니다.</p>`;
-        return;
-      }
+      pockets.forEach(pk => {
+        // 삭제 이력 체크
+        if (pk.deletedAfterMonth && pk.deletedAfterMonth <= prefix) return;
 
-      activePockets.forEach(pk => {
-        let prevCarryOver = 0;
-        let monthTotal = 0;
-        let monthUsed = 0;
-        let monthHistory = [];
+        // 월별 독립 정산 데이터 추출
+        const acc = getPocketMonthlyAccounting(pk, prefix);
 
-        if (pk.history) {
-          pk.history.forEach(h => {
-            const hDate = (h.date || getTodayYMD()).split(' ')[0];
-            if (hDate.startsWith(prefix)) {
-              monthTotal += h.amount;
-              monthHistory.push({ ...h, pocketId: pk.id });
-            } else if (hDate < prefix) {
-              prevCarryOver += h.amount;
-            }
-          });
+        // 새로운 달 시작 전 아무런 거래/이월금이 없으면 나타나지 않음
+        if (acc.carryOver === 0 && acc.monthTotal === 0 && acc.monthUsed === 0 && acc.remain === 0) {
+          return;
         }
 
-        transactions.forEach(t => {
-          if (t.date && t.type === 'expense') {
-            const tMonth = t.date.substring(0, 7);
-            const applyExpense = (amt) => {
-              if (tMonth < prefix) prevCarryOver -= amt;
-              else if (tMonth === prefix) monthUsed += amt;
-            };
-
-            if (t.splitDetails && t.splitDetails.length > 0) {
-              t.splitDetails.forEach(sd => {
-                if (sd.type === 'pocket' && (sd.id === pk.id || cleanRouteLabel(sd.name) === cleanRouteLabel(pk.name))) {
-                  applyExpense(sd.amount);
-                }
-              });
-            } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
-              if (Number(t.pocketId) === Number(pk.id)) {
-                applyExpense(t.amount);
-              }
-            }
-          }
-        });
-
-        fixedList.forEach(item => {
-          if (item.pocketId === 'CUSTOM_SPLIT' && item.splitDetails) {
-            item.splitDetails.forEach(sd => {
-              if (sd.type === 'pocket' && (sd.id === pk.id || cleanRouteLabel(sd.name) === cleanRouteLabel(pk.name))) {
-                monthUsed += sd.amount;
-              }
-            });
-          } else if (item.pocketId && Number(item.pocketId) === Number(pk.id)) {
-            monthUsed += item.amount;
-          }
-        });
-
-        const carryOver = Math.max(0, prevCarryOver);
-        const totalAvail = carryOver + monthTotal;
-        const remain = Math.max(0, totalAvail - monthUsed);
-        const percent = totalAvail > 0 ? Math.min(100, Math.round((monthUsed / totalAvail) * 100)) : 0;
+        renderedCount++;
+        const percent = acc.totalAvail > 0 ? Math.min(100, Math.round((acc.monthUsed / acc.totalAvail) * 100)) : 0;
 
         const card = document.createElement('div');
         card.className = 'pocket-card';
 
         let historyRows = '';
-        if (monthHistory.length > 0) {
-          historyRows = monthHistory.map(h => {
+        if (acc.history && acc.history.length > 0) {
+          historyRows = acc.history.map(h => {
             const cleanDate = (h.date || '').split(' ')[0] || getTodayYMD();
             return `
               <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; padding:3px 0; border-bottom:1px dashed var(--border);">
@@ -1589,13 +1586,13 @@
             <button class="btn-del" onclick="deletePocketNow(${pk.id})">✕ 주머니삭제</button>
           </div>
           <div style="font-size:0.7rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-            <span>전월 이월: <strong>${carryOver.toLocaleString()}원</strong></span>
-            <span>이번 달 충전: <strong style="color:var(--primary);">+${monthTotal.toLocaleString()}원</strong></span>
+            <span>전월 이월: <strong>${acc.carryOver.toLocaleString()}원</strong></span>
+            <span>이번 달 충전: <strong style="color:var(--primary);">+${acc.monthTotal.toLocaleString()}원</strong></span>
           </div>
           <div class="pocket-numbers" style="margin-top:2px;">
-            <span>사용 가능: <strong>${totalAvail.toLocaleString()}원</strong></span>
-            <span>사용: <strong style="color:var(--expense);">${monthUsed.toLocaleString()}원</strong></span>
-            <span>남음: <strong style="color:var(--income);">${remain.toLocaleString()}원</strong></span>
+            <span>사용 가능: <strong>${acc.totalAvail.toLocaleString()}원</strong></span>
+            <span>사용: <strong style="color:var(--expense);">${acc.monthUsed.toLocaleString()}원</strong></span>
+            <span>남음: <strong style="color:var(--income);">${acc.remain.toLocaleString()}원</strong></span>
           </div>
           <div class="pocket-progress-bg">
             <div class="pocket-progress-bar" style="width: ${percent}%;"></div>
@@ -1622,6 +1619,10 @@
 
         pocketContainer.appendChild(card);
       });
+
+      if (renderedCount === 0) {
+        pocketContainer.innerHTML = `<p style="font-size:0.72rem; color:#94a3b8; text-align:center; padding:10px 0;">${pMonthStr}에 등록된 이동금 현황이 없습니다.</p>`;
+      }
     }
 
     window.deletePocketNow = function(pocketId) {
@@ -2706,6 +2707,7 @@
         }
       }
 
+      // [수입 쪼개기] 저장 시 정확한 해당 날짜(해당 월)에 충전 히스토리 기록
       let finalIncomeSplits = null;
       if (currentType === 'income') {
         if (incomeSplitDetails && incomeSplitDetails.length > 0) {
