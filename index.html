@@ -318,7 +318,6 @@
       font-weight: 600;
     }
 
-    /* 고정지출 폼 */
     .mobile-fixed-form {
       display: flex;
       flex-direction: column;
@@ -477,12 +476,12 @@
     .type-toggle { display: flex; gap: 6px; margin-bottom: 8px; }
     .type-toggle button {
       flex: 1;
-      padding: 6px;
+      padding: 8px;
       border: 1px solid var(--border);
       background: var(--card-bg);
       border-radius: 6px;
-      font-weight: 600;
-      font-size: 0.8rem;
+      font-weight: 700;
+      font-size: 0.82rem;
       cursor: pointer;
       color: var(--text-muted);
     }
@@ -490,7 +489,7 @@
     .type-toggle button.active-income { background: var(--income); color: white; border-color: var(--income); }
 
     .form-group { margin-bottom: 7px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .form-row { display: flex; gap: 6px; align-items: stretch; }
 
     .form-group input, .form-group select, .form-group textarea {
       width: 100%;
@@ -793,7 +792,6 @@
 
             <div class="pocket-list" id="pocketListContainer"></div>
 
-            <!-- 새 이동금 추가 폼 -->
             <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 9px; border-radius: 8px; margin-top: 6px;">
               <span style="font-size: 0.75rem; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">+ 새 금액 이동 및 충전 등록</span>
               
@@ -897,7 +895,8 @@
           </div>
 
           <div class="form-row form-group" id="normalSelectRow">
-            <div class="custom-select-wrap" id="catWrap">
+            <!-- 카테고리 (지출일 때만 표시) -->
+            <div class="custom-select-wrap" id="catWrap" style="flex:1;">
               <button type="button" class="btn-select-trigger" id="btnCatTrigger">
                 <span id="selectedCatLabel">식비</span>
                 <span class="select-arrow">▾</span>
@@ -922,6 +921,7 @@
               </div>
             </div>
 
+            <!-- 수입 모드 전용 버튼 -->
             <div id="incomeSplitBtnWrap" class="hidden" style="flex:1;">
               <button type="button" id="btnOpenIncomeSplitModal" style="width:100%; height:38px; background:var(--card-bg); color:var(--primary); border:1px solid var(--primary); border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; padding:0 4px; text-align:center;">
                 수입 쪼개 담기
@@ -938,7 +938,7 @@
       </div>
     </div>
 
-    <!-- 지출/고정지출 분할 결제 모달 -->
+    <!-- 분할 결제 모달 -->
     <div id="splitModal" class="modal-overlay hidden" style="z-index: 150;">
       <div class="modal-box" style="max-width:360px;">
         <div class="modal-header">
@@ -1180,7 +1180,6 @@
       return Math.max(0, totalAvail - monthUsed);
     }
 
-    // 달력 날짜 셀 및 날짜 상세 모달 표시 전용 (고정지출 포함)
     function getMonthCombinedTransactions(yearMonthPrefix) {
       let combined = transactions.filter(t => t.date && t.date.startsWith(yearMonthPrefix));
       const [yearStr, monthStr] = yearMonthPrefix.split('-');
@@ -1286,7 +1285,6 @@
         });
       }
 
-      // 달력 셀 내부에는 고정지출을 표시
       const currentMonthAllTxs = getMonthCombinedTransactions(prefix);
 
       allCalendarDays.forEach((item, index) => {
@@ -1340,13 +1338,11 @@
       calculateSummaries();
     }
 
-    // [수정 핵심]: 고정지출은 하단 총 지출값(월/주간) 계산에서 완전히 제외하고 실제 등록 지출만 집계
     function calculateSummaries() {
       const curYear = currentDate.getFullYear();
       const curMonth = currentDate.getMonth() + 1;
       const monthPrefix = `${curYear}-${String(curMonth).padStart(2, '0')}`;
 
-      // 고정지출 제외, 순수 transactions 지출만 계산
       let monthExp = 0;
       transactions.forEach(t => {
         if (t.type === 'expense' && t.date && t.date.startsWith(monthPrefix)) {
@@ -1402,7 +1398,6 @@
       renderCalendar();
     });
 
-    // --- 3번 탭: 관리 렌더링 ---
     function renderManageTab() {
       const manageFixedList = document.getElementById('manageFixedList');
       const fixedTotalSum = document.getElementById('fixedTotalSum');
@@ -2550,7 +2545,45 @@
       }
 
       incomeSplitDetails = tempDetails;
+      document.getElementById('selectedCardLabel').innerText = '수입 분할 충전';
       document.getElementById('incomeSplitModal').classList.add('hidden');
+    });
+
+    // --- 수입 / 지출 토글 제어 (정상 클릭 및 전환 보장) ---
+    function setFormMode(type) {
+      currentType = type;
+      const expBtn = document.getElementById('typeExpBtn');
+      const incBtn = document.getElementById('typeIncBtn');
+      const catWrap = document.getElementById('catWrap');
+      const cardWrap = document.getElementById('cardWrap');
+      const incomeSplitBtnWrap = document.getElementById('incomeSplitBtnWrap');
+
+      if (type === 'expense') {
+        expBtn.className = 'active-expense';
+        incBtn.className = '';
+        catWrap.classList.remove('hidden');
+        cardWrap.classList.remove('hidden');
+        incomeSplitBtnWrap.classList.add('hidden');
+        incomeSplitDetails = null;
+      } else {
+        incBtn.className = 'active-income';
+        expBtn.className = '';
+        catWrap.classList.add('hidden'); // 수입은 카테고리 숨김
+        cardWrap.classList.remove('hidden');
+        incomeSplitBtnWrap.classList.remove('hidden');
+        currentSelectedPocketId = null;
+        appliedSplits = null;
+      }
+    }
+
+    document.getElementById('typeExpBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      setFormMode('expense');
+    });
+
+    document.getElementById('typeIncBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      setFormMode('income');
     });
 
     function openModal(dateStr) {
@@ -2567,6 +2600,7 @@
       document.getElementById('catDropdown').classList.add('hidden');
       document.getElementById('cardDropdown').classList.add('hidden');
 
+      setFormMode('expense');
       updateCategoryUI();
       updateCardUI();
       renderModalTxList();
@@ -2580,12 +2614,15 @@
       incomeSplitDetails = null;
       document.getElementById('btnOpenForm').classList.add('hidden');
       document.getElementById('formSection').classList.remove('hidden');
+      document.getElementById('btnSaveTx').innerText = '저장';
       
       document.getElementById('amountInput').value = '';
       document.getElementById('memoInput').value = '';
+      setFormMode('expense');
       document.getElementById('amountInput').focus();
     });
 
+    // --- 내역 수정 (수입 / 지출 완벽 대응) ---
     window.editTx = function(id) {
       const target = transactions.find(t => t.id === id);
       if (!target) return;
@@ -2594,10 +2631,14 @@
       currentSelectedPocketId = target.pocketId || null;
       appliedSplits = target.splitDetails || null;
       incomeSplitDetails = target.incomeSplitDetails || null;
+      
       document.getElementById('btnOpenForm').classList.add('hidden');
       document.getElementById('formSection').classList.remove('hidden');
 
+      // 1. 수입/지출 모드 즉시 적용
       setFormMode(target.type);
+
+      // 2. 값 바인딩
       document.getElementById('amountInput').value = formatNumberWithCommas(target.amount);
       document.getElementById('memoInput').value = target.memo || '';
 
@@ -2605,9 +2646,12 @@
         selectedCategory = target.category;
         document.getElementById('selectedCatLabel').innerText = target.category;
       }
+      
       if (target.card) {
         selectedCard = cleanRouteLabel(target.card);
         document.getElementById('selectedCardLabel').innerText = selectedCard;
+      } else if (target.type === 'income' && target.incomeSplitDetails) {
+        document.getElementById('selectedCardLabel').innerText = '수입 분할 충전';
       }
 
       document.getElementById('btnSaveTx').innerText = '수정 완료';
@@ -2618,9 +2662,7 @@
       document.getElementById('dayModal').classList.add('hidden');
     });
 
-    document.getElementById('typeExpBtn').addEventListener('click', () => setFormMode('expense'));
-    document.getElementById('typeIncBtn').addEventListener('click', () => setFormMode('income'));
-
+    // --- 내역 저장 및 수정 반영 ---
     document.getElementById('btnSaveTx').addEventListener('click', () => {
       const amount = parseRawNumber(document.getElementById('amountInput').value);
       const memo = document.getElementById('memoInput').value.trim() || (currentType === 'expense' ? '지출' : '수입');
@@ -2632,74 +2674,84 @@
         return;
       }
 
+      // 수정 시 기존 이동금/포켓 차감분 원복
       if (editingTxId !== null) {
         const oldTx = transactions.find(t => t.id === editingTxId);
         if (oldTx) {
-          if (oldTx.splitDetails) {
-            oldTx.splitDetails.forEach(sd => {
-              if (sd.type === 'pocket') {
-                pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: Math.max(0, p.usedAmount - sd.amount) } : p);
-              }
-            });
-          } else if (oldTx.pocketId && oldTx.pocketId !== 'CUSTOM_SPLIT') {
-            pockets = pockets.map(p => p.id === oldTx.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - oldTx.amount) } : p);
+          if (oldTx.type === 'expense') {
+            if (oldTx.splitDetails) {
+              oldTx.splitDetails.forEach(sd => {
+                if (sd.type === 'pocket') {
+                  pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: Math.max(0, p.usedAmount - sd.amount) } : p);
+                }
+              });
+            } else if (oldTx.pocketId && oldTx.pocketId !== 'CUSTOM_SPLIT') {
+              pockets = pockets.map(p => p.id === oldTx.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - oldTx.amount) } : p);
+            }
           }
         }
       }
 
-      if (currentType === 'expense' && currentSelectedPocketId === 'CUSTOM_SPLIT' && appliedSplits) {
-        appliedSplits.forEach(sd => {
-          if (sd.type === 'pocket') {
-            pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: p.usedAmount + sd.amount } : p);
+      // 지출 모드일 때 포켓 차감
+      if (currentType === 'expense') {
+        if (currentSelectedPocketId === 'CUSTOM_SPLIT' && appliedSplits) {
+          appliedSplits.forEach(sd => {
+            if (sd.type === 'pocket') {
+              pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: p.usedAmount + sd.amount } : p);
+            }
+          });
+          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+          card = '복합 분할 결제';
+        } else if (currentSelectedPocketId) {
+          const targetPkt = pockets.find(p => p.id === currentSelectedPocketId);
+          if (targetPkt) {
+            targetPkt.usedAmount += amount;
+            safeStorage.setItem('money_pockets', JSON.stringify(pockets));
           }
-        });
-        safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-        card = '복합 분할 결제';
-      } else if (currentType === 'expense' && currentSelectedPocketId) {
-        const targetPkt = pockets.find(p => p.id === currentSelectedPocketId);
-        if (targetPkt) {
-          targetPkt.usedAmount += amount;
+        }
+      }
+
+      // 수입 쪼개기 충전 반영
+      let finalIncomeSplits = null;
+      if (currentType === 'income') {
+        if (incomeSplitDetails && incomeSplitDetails.length > 0) {
+          card = '수입 분할 충전';
+          finalIncomeSplits = incomeSplitDetails;
+
+          incomeSplitDetails.forEach(sd => {
+            const fromCardName = selectedCard || '용돈출처';
+            const toCardName = sd.cardName;
+            const routeName = `[${fromCardName}➔${toCardName}]`;
+
+            const newHistoryEntry = {
+              id: 'h_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+              date: selectedDateStr,
+              amount: sd.amount
+            };
+
+            let existingPocket = pockets.find(p => p.fromCard === fromCardName && p.toCard === toCardName);
+            if (existingPocket) {
+              existingPocket.totalAmount += sd.amount;
+              if (!existingPocket.history) existingPocket.history = [];
+              existingPocket.history.push(newHistoryEntry);
+              delete existingPocket.deletedAfterMonth;
+            } else {
+              pockets.unshift({
+                id: Date.now() + Math.floor(Math.random()*100),
+                name: routeName,
+                fromCard: fromCardName,
+                toCard: toCardName,
+                totalAmount: sd.amount,
+                usedAmount: 0,
+                history: [newHistoryEntry]
+              });
+            }
+          });
           safeStorage.setItem('money_pockets', JSON.stringify(pockets));
         }
       }
 
-      let finalIncomeSplits = null;
-      if (currentType === 'income' && incomeSplitDetails && incomeSplitDetails.length > 0) {
-        card = '수입 분할 충전';
-        finalIncomeSplits = incomeSplitDetails;
-
-        incomeSplitDetails.forEach(sd => {
-          const fromCardName = selectedCard || '용돈출처';
-          const toCardName = sd.cardName;
-          const routeName = `[${fromCardName}➔${toCardName}]`;
-
-          const newHistoryEntry = {
-            id: 'h_' + Date.now() + '_' + Math.floor(Math.random()*1000),
-            date: selectedDateStr,
-            amount: sd.amount
-          };
-
-          let existingPocket = pockets.find(p => p.fromCard === fromCardName && p.toCard === toCardName);
-          if (existingPocket) {
-            existingPocket.totalAmount += sd.amount;
-            if (!existingPocket.history) existingPocket.history = [];
-            existingPocket.history.push(newHistoryEntry);
-            delete existingPocket.deletedAfterMonth;
-          } else {
-            pockets.unshift({
-              id: Date.now() + Math.floor(Math.random()*100),
-              name: routeName,
-              fromCard: fromCardName,
-              toCard: toCardName,
-              totalAmount: sd.amount,
-              usedAmount: 0,
-              history: [newHistoryEntry]
-            });
-          }
-        });
-        safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-      }
-
+      // 저장 또는 업데이트
       if (editingTxId !== null) {
         transactions = transactions.map(t => {
           if (t.id === editingTxId) {
@@ -2710,8 +2762,8 @@
               category: category,
               card: card,
               memo: memo,
-              pocketId: currentSelectedPocketId,
-              splitDetails: appliedSplits,
+              pocketId: currentType === 'expense' ? currentSelectedPocketId : null,
+              splitDetails: currentType === 'expense' ? appliedSplits : null,
               incomeSplitDetails: finalIncomeSplits
             };
           }
@@ -2726,8 +2778,8 @@
           category: category,
           card: card,
           memo: memo,
-          pocketId: currentSelectedPocketId,
-          splitDetails: appliedSplits,
+          pocketId: currentType === 'expense' ? currentSelectedPocketId : null,
+          splitDetails: currentType === 'expense' ? appliedSplits : null,
           incomeSplitDetails: finalIncomeSplits
         });
       }
@@ -2803,16 +2855,18 @@
       e.stopPropagation();
       const target = transactions.find(t => t.id === id);
       if (target) {
-        if (target.splitDetails) {
-          target.splitDetails.forEach(sd => {
-            if (sd.type === 'pocket') {
-              pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: Math.max(0, p.usedAmount - sd.amount) } : p);
-            }
-          });
-          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-        } else if (target.pocketId && target.pocketId !== 'CUSTOM_SPLIT') {
-          pockets = pockets.map(p => p.id === target.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - target.amount) } : p);
-          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+        if (target.type === 'expense') {
+          if (target.splitDetails) {
+            target.splitDetails.forEach(sd => {
+              if (sd.type === 'pocket') {
+                pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: Math.max(0, p.usedAmount - sd.amount) } : p);
+              }
+            });
+            safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+          } else if (target.pocketId && target.pocketId !== 'CUSTOM_SPLIT') {
+            pockets = pockets.map(p => p.id === target.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - target.amount) } : p);
+            safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+          }
         }
       }
 
@@ -2849,7 +2903,6 @@
 
       categories.forEach(c => catExpenses[c] = 0);
 
-      // 통계 차트 역시 순수 직접 지출만 집계
       transactions.forEach(t => {
         if (t.type === 'expense' && t.date && t.date.startsWith(prefix)) {
           totalExpense += t.amount;
@@ -2943,7 +2996,6 @@
       let totalExpense = 0;
       let catExpenses = {};
 
-      // 이번 달 목표 예산 통계에서도 고정지출 제외한 순수 직접 지출만 비교
       transactions.forEach(t => {
         if (t.type === 'expense' && t.date && t.date.startsWith(prefix)) {
           totalExpense += t.amount;
