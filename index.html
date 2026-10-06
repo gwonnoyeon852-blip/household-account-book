@@ -210,7 +210,7 @@
     }
     .summary-data-row strong { color: var(--expense); font-weight: 700; }
 
-    /* 3번 탭: 관리 모바일 레이아웃 */
+    /* 3번 탭: 관리 */
     .manage-nav-bar {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -715,7 +715,7 @@
 
         <div class="manage-view-container">
           
-          <!-- 상세 1: 고정지출 (항목:금액:카드 = 1:1:0.5) -->
+          <!-- 상세 1: 고정지출 -->
           <div class="manage-page active" id="pageFixed">
             <div class="page-header">
               <h3>고정지출 목록</h3>
@@ -725,7 +725,6 @@
             <div class="fixed-list" id="manageFixedList"></div>
 
             <div class="mobile-fixed-form">
-              <!-- 1행: 항목(1) : 금액(1) : 카드(0.5) -->
               <div class="mobile-grid-row">
                 <input type="text" id="addFixedDesc" class="input-base" placeholder="항목명" style="flex:1;" />
                 <input type="text" id="addFixedAmount" class="input-base" placeholder="금액" style="flex:1;" inputmode="numeric" />
@@ -740,7 +739,6 @@
                 </div>
               </div>
               
-              <!-- 2행: 날짜, 메모, 추가 -->
               <div class="mobile-grid-row">
                 <select id="addFixedDay" class="input-base" style="width: 72px; flex-shrink: 0; padding-left: 4px;">
                   <option value="1">1일</option>
@@ -793,7 +791,7 @@
 
             <div class="pocket-list" id="pocketListContainer"></div>
 
-            <!-- 새 금액 이동 및 충전 등록 (날짜 0.8, 금액 1.4) -->
+            <!-- 새 금액 이동 및 충전 등록 -->
             <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 9px; border-radius: 8px; margin-top: 6px;">
               <span style="font-size: 0.75rem; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">+ 새 금액 이동 및 충전 등록</span>
               
@@ -1083,7 +1081,9 @@
     let fixedAppliedSplits = null;
 
     let currentDate = new Date();
+    currentDate.setDate(1);
     let pocketViewDate = new Date();
+    pocketViewDate.setDate(1);
     let selectedDateStr = '';
     let currentType = 'expense';
     let editingTxId = null;
@@ -1091,9 +1091,10 @@
     let currentSelectedPocketId = null; 
     let appliedSplits = null;
     let incomeSplitDetails = null;
+    let editingIncomeFrom = null;
 
     let currentEditingPocketId = null;
-    let currentEditingHistoryId = null;
+    let currentEditingTxId = null;
 
     let calendarMonthWeeks = [];
     let currentWeekIndex = 0;
@@ -1124,101 +1125,139 @@
       return raw.replace(/->/g, '➔');
     }
 
-    // [전체 월 완벽 독립 체인 정산 로직]
-    function getPocketMonthlyAccounting(pkt, targetPrefix) {
-      let monthsSet = new Set();
-      if (pkt.history) {
-        pkt.history.forEach(h => {
-          const m = (h.date || '').substring(0, 7);
-          if (m) monthsSet.add(m);
-        });
-      }
-      transactions.forEach(t => {
-        const m = (t.date || '').substring(0, 7);
-        if (m) monthsSet.add(m);
-      });
-      monthsSet.add(targetPrefix);
-
-      const sortedMonths = Array.from(monthsSet).sort();
-      let lastCarryOver = 0;
-      let targetStats = null;
-
-      for (let m of sortedMonths) {
-        if (m > targetPrefix) break;
-
-        let mTotal = 0;
-        let mHist = [];
-        if (pkt.history) {
-          pkt.history.forEach(h => {
-            const hDate = (h.date || getTodayYMD()).split(' ')[0];
-            if (hDate.startsWith(m)) {
-              mTotal += h.amount;
-              mHist.push({ ...h, pocketId: pkt.id });
-            }
-          });
-        }
-
-        let mUsed = 0;
-        transactions.forEach(t => {
-          if (t.date && t.date.startsWith(m) && t.type === 'expense') {
-            if (t.splitDetails && t.splitDetails.length > 0) {
-              t.splitDetails.forEach(sd => {
-                if (sd.type === 'pocket' && (sd.id === pkt.id || cleanRouteLabel(sd.name) === cleanRouteLabel(pkt.name))) {
-                  mUsed += sd.amount;
-                }
-              });
-            } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
-              if (Number(t.pocketId) === Number(pkt.id)) {
-                mUsed += t.amount;
-              }
-            }
-          }
-        });
-
-        fixedList.forEach(item => {
-          if (item.pocketId === 'CUSTOM_SPLIT' && item.splitDetails) {
-            item.splitDetails.forEach(sd => {
-              if (sd.type === 'pocket' && (sd.id === pkt.id || cleanRouteLabel(sd.name) === cleanRouteLabel(pkt.name))) {
-                mUsed += sd.amount;
-              }
-            });
-          } else if (item.pocketId && Number(item.pocketId) === Number(pkt.id)) {
-            mUsed += item.amount;
-          }
-        });
-
-        let totalAvail = lastCarryOver + mTotal;
-        let remain = Math.max(0, totalAvail - mUsed);
-
-        if (m === targetPrefix) {
-          targetStats = {
-            carryOver: lastCarryOver,
-            monthTotal: mTotal,
-            monthUsed: mUsed,
-            totalAvail: totalAvail,
-            remain: remain,
-            history: mHist
-          };
-          break;
-        }
-
-        // 전달 것은 전달에서 마감되고, 남은 잔액만 다음 달 시작 금액으로 이월
-        lastCarryOver = remain;
-      }
-
-      return targetStats || {
-        carryOver: 0,
-        monthTotal: 0,
-        monthUsed: 0,
-        totalAvail: 0,
-        remain: 0,
-        history: []
-      };
+    function savePockets() {
+      safeStorage.setItem('money_pockets', JSON.stringify(pockets));
     }
 
-    function getPocketBalanceAtMonth(targetPocket, prefix) {
-      const acc = getPocketMonthlyAccounting(targetPocket, prefix);
-      return acc.remain;
+    function saveTransactions() {
+      safeStorage.setItem('money_tx_list', JSON.stringify(transactions));
+    }
+
+    // [핵심 1] 모든 연월(monthKey: 'YYYY-MM')에 적용되는 월별 독립 주머니(Pocket) 생성/가져오기
+    function ensureMonthlyRoute(from, to, monthKey) {
+      let p = pockets.find(x => x.fromCard === from && x.toCard === to && x.monthKey === monthKey);
+      if (!p) {
+        p = {
+          id: Date.now() + Math.floor(Math.random() * 100000),
+          name: `[${from}➔${to}]`,
+          fromCard: from,
+          toCard: to,
+          monthKey: monthKey
+        };
+        pockets.push(p);
+      }
+      return p;
+    }
+
+    // 달력 수입 내역 기준으로 모든 월의 독립 주머니 자동 동기화
+    function syncRoutes() {
+      let changed = false;
+      transactions.forEach(t => {
+        if (t.type !== 'income' || !t.incomeSplitDetails || !t.date) return;
+        const from = t.incomeFrom || '용돈출처';
+        const mKey = t.date.substring(0, 7);
+        t.incomeSplitDetails.forEach(s => {
+          if (!pockets.some(p => p.fromCard === from && p.toCard === s.cardName && p.monthKey === mKey)) {
+            ensureMonthlyRoute(from, s.cardName, mKey);
+            changed = true;
+          }
+        });
+      });
+      if (changed) savePockets();
+    }
+
+    function detachSplitFromTx(txId, toCard) {
+      const tx = transactions.find(t => t.id === txId);
+      if (!tx || !tx.incomeSplitDetails) return;
+      const idx = tx.incomeSplitDetails.findIndex(s => s.cardName === toCard);
+      if (idx > -1) {
+        tx.amount -= tx.incomeSplitDetails[idx].amount;
+        tx.incomeSplitDetails.splice(idx, 1);
+      }
+      if (tx.incomeSplitDetails.length === 0 || tx.amount <= 0) {
+        transactions = transactions.filter(t => t.id !== txId);
+      }
+      saveTransactions();
+    }
+
+    // 기존 데이터 마이그레이션 (모든 주머니에 monthKey 보장)
+    function migrateLegacyData() {
+      let changed = false;
+      pockets = pockets.filter(p => p && p.fromCard && p.toCard);
+      pockets.forEach(pkt => {
+        if (!pkt.monthKey) {
+          const relatedTx = transactions.find(t => 
+            t.type === 'income' && (t.incomeFrom === pkt.fromCard) && 
+            t.incomeSplitDetails && t.incomeSplitDetails.some(s => s.cardName === pkt.toCard)
+          );
+          pkt.monthKey = relatedTx && relatedTx.date ? relatedTx.date.substring(0, 7) : getTodayYMD().substring(0, 7);
+          changed = true;
+        }
+        delete pkt.history;
+        delete pkt.totalAmount;
+        delete pkt.usedAmount;
+      });
+
+      if (changed) {
+        savePockets();
+        saveTransactions();
+      }
+      syncRoutes();
+    }
+
+    function resolveIncomeSource() {
+      const name = cleanRouteLabel(selectedCard);
+      if (!name || name === '수입 분할 충전' || name === '복합 분할 결제' || name.startsWith('[')) return '용돈출처';
+      return name;
+    }
+
+    // 특정 월별 주머니의 충전 내역 목록 (해당 월 충전 건만 집계)
+    function getPocketCharges(pkt) {
+      const list = [];
+      transactions.forEach(t => {
+        if (t.type !== 'income' || !t.incomeSplitDetails || !t.date) return;
+        if (!t.date.startsWith(pkt.monthKey)) return;
+        if ((t.incomeFrom || '용돈출처') !== pkt.fromCard) return;
+        t.incomeSplitDetails.forEach(s => {
+          if (s.cardName === pkt.toCard) {
+            list.push({ txId: t.id, date: t.date, amount: s.amount });
+          }
+        });
+      });
+      return list;
+    }
+
+    // [핵심 2] 특정 월별 주머니의 사용 금액 (해당 월 지출만 집계)
+    function getPocketUsed(pkt) {
+      let used = 0;
+      const match = sd => sd.type === 'pocket' && (Number(sd.id) === Number(pkt.id) || (cleanRouteLabel(sd.name) === cleanRouteLabel(pkt.name) && sd.monthKey === pkt.monthKey));
+
+      transactions.forEach(t => {
+        if (t.type !== 'expense' || !t.date || !t.date.startsWith(pkt.monthKey)) return;
+        if (t.splitDetails && t.splitDetails.length > 0) {
+          t.splitDetails.forEach(sd => { if (match(sd)) used += sd.amount; });
+        } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
+          if (Number(t.pocketId) === Number(pkt.id)) used += t.amount;
+        }
+      });
+
+      fixedList.forEach(item => {
+        if (item.pocketId === 'CUSTOM_SPLIT' && item.splitDetails) {
+          item.splitDetails.forEach(sd => { if (match(sd)) used += sd.amount; });
+        } else if (item.pocketId && Number(item.pocketId) === Number(pkt.id)) {
+          used += item.amount;
+        }
+      });
+      return used;
+    }
+
+    // [핵심 3] 모든 월 공통 독립 정산 (전월 이월 없이 오직 그 달의 충전과 사용만 계산)
+    function getPocketAccounting(pkt) {
+      const history = getPocketCharges(pkt);
+      const totalAmount = history.reduce((sum, h) => sum + h.amount, 0);
+      const usedAmount = getPocketUsed(pkt);
+      const remain = Math.max(0, totalAmount - usedAmount);
+      return { totalAmount, usedAmount, remain, history };
     }
 
     function getMonthCombinedTransactions(yearMonthPrefix) {
@@ -1523,7 +1562,7 @@
       });
     }
 
-    // [핵심] 실제 활동이 없으면 새 달에는 주머니가 나타나지 않고, 삭제 시 이전 달은 유지
+    // [핵심 4] 현황판: 선택된 월(어떤 달이든 상관없이)에 속한 독립 주머니 카드만 렌더링
     function renderPocketList() {
       const pocketContainer = document.getElementById('pocketListContainer');
       pocketContainer.innerHTML = '';
@@ -1535,64 +1574,55 @@
 
       document.getElementById('pocketMonthTitle').innerText = pMonthStr;
 
+      syncRoutes();
+
       let renderedCount = 0;
 
-      pockets.forEach(pk => {
-        if (pk.deletedAfterMonth && pk.deletedAfterMonth <= prefix) return;
+      // 현재 보고 있는 월(prefix)에 속한 주머니만 정확히 필터링
+      const monthPockets = pockets.filter(pk => pk.monthKey === prefix);
 
-        const acc = getPocketMonthlyAccounting(pk, prefix);
+      monthPockets.forEach(pk => {
+        const acc = getPocketAccounting(pk);
 
-        // 활동 없는 빈 달은 자동 숨김
-        if (acc.carryOver === 0 && acc.monthTotal === 0 && acc.monthUsed === 0 && acc.remain === 0) {
-          return;
-        }
+        // 충전 내역이 있는 주머니만 표시
+        if (acc.totalAmount <= 0) return;
 
         renderedCount++;
-        const percent = acc.totalAvail > 0 ? Math.min(100, Math.round((acc.monthUsed / acc.totalAvail) * 100)) : 0;
+        const percent = acc.totalAmount > 0 ? Math.min(100, Math.round((acc.usedAmount / acc.totalAmount) * 100)) : 0;
 
         const card = document.createElement('div');
         card.className = 'pocket-card';
 
         let historyRows = '';
-        if (acc.history && acc.history.length > 0) {
-          historyRows = acc.history.map(h => {
-            const cleanDate = (h.date || '').split(' ')[0] || getTodayYMD();
-            return `
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; padding:3px 0; border-bottom:1px dashed var(--border);">
-                <span style="color:#475569;">• <strong>+${h.amount.toLocaleString()}원</strong> (${escapeHtml(cleanDate)})</span>
-                <div style="display:flex; gap:4px;">
-                  <button type="button" class="btn-edit-hist" data-pocket-id="${pk.id}" data-hist-id="${h.id}" style="background:#e0e7ff; color:var(--primary); border:none; padding:1px 5px; border-radius:3px; font-size:0.65rem; font-weight:700; cursor:pointer;">수정</button>
-                  <button type="button" class="btn-del-hist" data-pocket-id="${pk.id}" data-hist-id="${h.id}" style="background:#fee2e2; color:var(--expense); border:none; padding:1px 5px; border-radius:3px; font-size:0.65rem; font-weight:700; cursor:pointer;">삭제</button>
-                </div>
+        if (acc.history.length > 0) {
+          historyRows = acc.history.map(h => `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; padding:3px 0; border-bottom:1px dashed var(--border);">
+              <span style="color:#475569;">• <strong>+${h.amount.toLocaleString()}원</strong> (${escapeHtml(h.date)})</span>
+              <div style="display:flex; gap:4px;">
+                <button type="button" class="btn-edit-hist" data-pocket-id="${pk.id}" data-tx-id="${h.txId}" style="background:#e0e7ff; color:var(--primary); border:none; padding:1px 5px; border-radius:3px; font-size:0.65rem; font-weight:700; cursor:pointer;">수정</button>
+                <button type="button" class="btn-del-hist" data-pocket-id="${pk.id}" data-tx-id="${h.txId}" style="background:#fee2e2; color:var(--expense); border:none; padding:1px 5px; border-radius:3px; font-size:0.65rem; font-weight:700; cursor:pointer;">삭제</button>
               </div>
-            `;
-          }).join('');
-        } else {
-          historyRows = `<span style="font-size:0.68rem; color:#94a3b8;">이번 달 충전 기록 없음</span>`;
+            </div>
+          `).join('');
         }
 
         card.innerHTML = `
           <div class="pocket-header">
             <div>
               <span class="pocket-route">${escapeHtml(pk.fromCard)} ➔ ${escapeHtml(pk.toCard)}</span>
-              <strong style="margin-left:3px;">${escapeHtml(cleanRouteLabel(pk.name))}</strong>
             </div>
-            <button class="btn-del" onclick="deletePocketNow(${pk.id})">✕ 주머니삭제</button>
+            <button class="btn-del" onclick="deletePocketNow(${pk.id})">✕ 삭제</button>
           </div>
-          <div style="font-size:0.7rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-            <span>전월 이월: <strong>${acc.carryOver.toLocaleString()}원</strong></span>
-            <span>이번 달 충전: <strong style="color:var(--primary);">+${acc.monthTotal.toLocaleString()}원</strong></span>
-          </div>
-          <div class="pocket-numbers" style="margin-top:2px;">
-            <span>사용 가능: <strong>${acc.totalAvail.toLocaleString()}원</strong></span>
-            <span>사용: <strong style="color:var(--expense);">${acc.monthUsed.toLocaleString()}원</strong></span>
+          <div class="pocket-numbers" style="margin-top:4px;">
+            <span>이동 금액: <strong style="color:var(--primary);">+${acc.totalAmount.toLocaleString()}원</strong></span>
+            <span>사용: <strong style="color:var(--expense);">${acc.usedAmount.toLocaleString()}원</strong></span>
             <span>남음: <strong style="color:var(--income);">${acc.remain.toLocaleString()}원</strong></span>
           </div>
           <div class="pocket-progress-bg">
             <div class="pocket-progress-bar" style="width: ${percent}%;"></div>
           </div>
           <div style="margin-top:5px; padding-top:3px; border-top:1px solid var(--border);">
-            <div style="font-size:0.68rem; font-weight:700; color:#334155; margin-bottom:2px;">이번 달 충전 기록:</div>
+            <div style="font-size:0.68rem; font-weight:700; color:#334155; margin-bottom:2px;">이동/충전 상세 기록:</div>
             <div style="display:flex; flex-direction:column; gap:2px;">${historyRows}</div>
           </div>
         `;
@@ -1600,14 +1630,14 @@
         card.querySelectorAll('.btn-edit-hist').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            openEditHistoryModal(Number(btn.dataset.pocketId), btn.dataset.histId);
+            openEditHistoryModal(Number(btn.dataset.pocketId), Number(btn.dataset.txId));
           });
         });
 
         card.querySelectorAll('.btn-del-hist').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            deletePocketHistory(Number(btn.dataset.pocketId), btn.dataset.histId);
+            deletePocketHistory(Number(btn.dataset.pocketId), Number(btn.dataset.txId));
           });
         });
 
@@ -1619,23 +1649,23 @@
       }
     }
 
-    // 팝업 없이 해당 월 및 이후에서만 주머니 종료 (이전 달은 영구 보존)
-    window.deletePocketNow = function(pocketId) {
-      const pYear = pocketViewDate.getFullYear();
-      const pMonth = pocketViewDate.getMonth() + 1;
-      const currentPrefix = `${pYear}-${String(pMonth).padStart(2, '0')}`;
-
-      pockets = pockets.map(p => {
-        if (p.id === pocketId) {
-          return { ...p, deletedAfterMonth: currentPrefix };
-        }
-        return p;
-      });
-
-      safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+    function refreshPocketRelatedUI() {
       renderPocketList();
       updateCardUI();
       renderFixedCardUI();
+      renderCalendar();
+    }
+
+    // 보고 있는 달의 특정 주머니 삭제
+    window.deletePocketNow = function(pocketId) {
+      const pkt = pockets.find(p => p.id === pocketId);
+      if (!pkt) return;
+      if (!confirm(`[${pkt.fromCard}➔${pkt.toCard}] 주머니와 해당 달(${pkt.monthKey})의 충전 내역을 삭제합니다. 삭제할까요?`)) return;
+
+      getPocketCharges(pkt).forEach(c => detachSplitFromTx(c.txId, pkt.toCard));
+      pockets = pockets.filter(p => p.id !== pocketId);
+      savePockets();
+      refreshPocketRelatedUI();
     };
 
     document.getElementById('btnPrevPocketMonth').addEventListener('click', () => {
@@ -1648,6 +1678,7 @@
       renderPocketList();
     });
 
+    // 새 금액 이동 및 충전 등록 (선택된 날짜의 해당 월에 종속된 새 주머니로 등록)
     document.getElementById('btnCreatePocket').addEventListener('click', () => {
       const fromCard = document.getElementById('pocketFromCard').value;
       const toCard = document.getElementById('pocketToCard').value;
@@ -1664,52 +1695,47 @@
       }
 
       const dateOnly = dtVal ? dtVal.split('T')[0] : getTodayYMD();
+      const monthKey = dateOnly.substring(0, 7);
 
-      const newHistoryEntry = {
-        id: 'h_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+      ensureMonthlyRoute(fromCard, toCard, monthKey);
+
+      transactions.push({
+        id: Date.now(),
         date: dateOnly,
-        amount: amount
-      };
+        type: 'income',
+        amount: amount,
+        category: '',
+        card: '수입 분할 충전',
+        memo: `[이동금] ${fromCard}➔${toCard}`,
+        pocketId: null,
+        splitDetails: null,
+        incomeSplitDetails: [{ cardName: toCard, amount: amount }],
+        incomeFrom: fromCard
+      });
 
-      const existingPocket = pockets.find(p => p.fromCard === fromCard && p.toCard === toCard);
+      savePockets();
+      saveTransactions();
 
-      if (existingPocket) {
-        existingPocket.totalAmount += amount;
-        if (!existingPocket.history) existingPocket.history = [];
-        existingPocket.history.push(newHistoryEntry);
-        delete existingPocket.deletedAfterMonth;
-      } else {
-        const newPocket = {
-          id: Date.now(),
-          name: `[${fromCard}➔${toCard}]`,
-          fromCard: fromCard,
-          toCard: toCard,
-          totalAmount: amount,
-          usedAmount: 0,
-          history: [newHistoryEntry]
-        };
-        pockets.unshift(newPocket);
-      }
+      const [yy, mm] = dateOnly.split('-').map(Number);
+      pocketViewDate = new Date(yy, mm - 1, 1);
 
-      safeStorage.setItem('money_pockets', JSON.stringify(pockets));
       document.getElementById('pocketAmount').value = '';
       document.getElementById('pocketDateInput').value = getTodayYMD();
-      renderPocketList();
-      updateCardUI();
-      renderFixedCardUI();
+      refreshPocketRelatedUI();
     });
 
-    function openEditHistoryModal(pocketId, histId) {
+    function openEditHistoryModal(pocketId, txId) {
       const pkt = pockets.find(p => p.id === pocketId);
-      if (!pkt || !pkt.history) return;
-      const h = pkt.history.find(item => String(item.id) === String(histId));
-      if (!h) return;
+      const tx = transactions.find(t => t.id === txId);
+      if (!pkt || !tx || !tx.incomeSplitDetails) return;
+      const s = tx.incomeSplitDetails.find(x => x.cardName === pkt.toCard);
+      if (!s) return;
 
       currentEditingPocketId = pocketId;
-      currentEditingHistoryId = histId;
+      currentEditingTxId = txId;
 
-      document.getElementById('editHistDate').value = (h.date || '').split(' ')[0] || getTodayYMD();
-      document.getElementById('editHistAmount').value = formatNumberWithCommas(h.amount);
+      document.getElementById('editHistDate').value = tx.date;
+      document.getElementById('editHistAmount').value = formatNumberWithCommas(s.amount);
       document.getElementById('editHistoryModal').classList.remove('hidden');
     }
 
@@ -1719,9 +1745,10 @@
 
     document.getElementById('btnSaveEditHistory').addEventListener('click', () => {
       const pkt = pockets.find(p => p.id === currentEditingPocketId);
-      if (!pkt || !pkt.history) return;
-      const h = pkt.history.find(item => String(item.id) === String(currentEditingHistoryId));
-      if (!h) return;
+      const tx = transactions.find(t => t.id === currentEditingTxId);
+      if (!pkt || !tx || !tx.incomeSplitDetails) return;
+      const s = tx.incomeSplitDetails.find(x => x.cardName === pkt.toCard);
+      if (!s) return;
 
       const newDate = document.getElementById('editHistDate').value;
       const newAmt = parseRawNumber(document.getElementById('editHistAmount').value);
@@ -1731,31 +1758,48 @@
         return;
       }
 
-      const diff = newAmt - h.amount;
-      h.date = newDate;
-      h.amount = newAmt;
-      pkt.totalAmount += diff;
+      const oldAmt = s.amount;
+      const newMonthKey = newDate.substring(0, 7);
 
-      safeStorage.setItem('money_pockets', JSON.stringify(pockets));
+      // 만약 날짜 수정으로 월이 바뀌었다면 새 월의 주머니를 생성/보장
+      if (newMonthKey !== pkt.monthKey) {
+        ensureMonthlyRoute(pkt.fromCard, pkt.toCard, newMonthKey);
+      }
+
+      if (newDate !== tx.date && tx.incomeSplitDetails.length > 1) {
+        tx.incomeSplitDetails = tx.incomeSplitDetails.filter(x => x !== s);
+        tx.amount -= oldAmt;
+        transactions.push({
+          ...tx,
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          date: newDate,
+          amount: newAmt,
+          incomeSplitDetails: [{ cardName: pkt.toCard, amount: newAmt }]
+        });
+      } else {
+        s.amount = newAmt;
+        tx.amount += newAmt - oldAmt;
+        tx.date = newDate;
+      }
+
+      savePockets();
+      saveTransactions();
       document.getElementById('editHistoryModal').classList.add('hidden');
-      renderPocketList();
-      updateCardUI();
+
+      const [yy, mm] = newDate.split('-').map(Number);
+      pocketViewDate = new Date(yy, mm - 1, 1);
+
+      refreshPocketRelatedUI();
     });
 
-    function deletePocketHistory(pocketId, histId) {
+    function deletePocketHistory(pocketId, txId) {
       const pkt = pockets.find(p => p.id === pocketId);
-      if (!pkt || !pkt.history) return;
-      const h = pkt.history.find(item => String(item.id) === String(histId));
-      if (!h) return;
-
-      pkt.totalAmount -= h.amount;
-      pkt.history = pkt.history.filter(item => String(item.id) !== String(histId));
-      safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-      renderPocketList();
-      updateCardUI();
+      if (!pkt) return;
+      detachSplitFromTx(txId, pkt.toCard);
+      refreshPocketRelatedUI();
     }
 
-    // --- 고정지출 등록 / 수정 ---
+    // --- 고정지출 관리 ---
     window.editFixedItem = function(id) {
       const target = fixedList.find(item => item.id === id);
       if (!target) return;
@@ -1887,7 +1931,9 @@
       const pYear = currentDate.getFullYear();
       const pMonth = currentDate.getMonth() + 1;
       const currentPrefix = `${pYear}-${String(pMonth).padStart(2, '0')}`;
-      const activePockets = pockets.filter(pkt => !pkt.deletedAfterMonth || pkt.deletedAfterMonth > currentPrefix);
+
+      // 현재 달의 잔여 주머니만 표시
+      const activePockets = pockets.filter(pkt => pkt.monthKey === currentPrefix && getPocketAccounting(pkt).remain > 0);
 
       if (activePockets.length > 0) {
         const divider = document.createElement('div');
@@ -1896,13 +1942,13 @@
         fixedCardListBox.appendChild(divider);
 
         activePockets.forEach(pkt => {
-          const remain = getPocketBalanceAtMonth(pkt, currentPrefix);
+          const acc = getPocketAccounting(pkt);
           const item = document.createElement('div');
           item.className = 'dropdown-item';
           const cleanPktName = cleanRouteLabel(pkt.name);
           item.innerHTML = `
             <span style="font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; max-width:130px;">${escapeHtml(cleanPktName)}</span>
-            <span style="font-size:0.68rem; color:var(--income); font-weight:700; flex-shrink:0;">잔액: ${remain.toLocaleString()}원</span>
+            <span style="font-size:0.68rem; color:var(--income); font-weight:700; flex-shrink:0;">잔액: ${acc.remain.toLocaleString()}원</span>
           `;
           item.addEventListener('click', () => {
             selectedFixedCard = cleanPktName;
@@ -1942,7 +1988,7 @@
               const pid = Number(inp.dataset.id);
               const pkt = pockets.find(p => p.id === pid);
               sumInput += val;
-              tempSplits.push({ type: 'pocket', id: pid, name: pkt ? cleanRouteLabel(pkt.name) : '이동금', amount: val });
+              tempSplits.push({ type: 'pocket', id: pid, name: pkt ? cleanRouteLabel(pkt.name) : '이동금', amount: val, monthKey: pkt ? pkt.monthKey : '' });
             } else {
               const cName = inp.dataset.cardName;
               sumInput += val;
@@ -1972,7 +2018,7 @@
       const pYear = currentDate.getFullYear();
       const pMonth = currentDate.getMonth() + 1;
       const currentPrefix = `${pYear}-${String(pMonth).padStart(2, '0')}`;
-      const activePockets = pockets.filter(pkt => !pkt.deletedAfterMonth || pkt.deletedAfterMonth > currentPrefix);
+      const activePockets = pockets.filter(pkt => pkt.monthKey === currentPrefix && getPocketAccounting(pkt).remain > 0);
 
       if (activePockets.length > 0) {
         const pHeader = document.createElement('div');
@@ -1986,14 +2032,14 @@
             const f = fixedAppliedSplits.find(s => s.type === 'pocket' && s.id === pkt.id);
             if (f) preAmt = formatNumberWithCommas(f.amount);
           }
-          const remain = getPocketBalanceAtMonth(pkt, currentPrefix);
+          const acc = getPocketAccounting(pkt);
 
           const row = document.createElement('div');
           row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.75rem; background:var(--card-bg); padding:5px 8px; border-radius:4px; border:1px solid var(--border);';
           row.innerHTML = `
             <div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
               <strong style="color:var(--text);">${escapeHtml(cleanRouteLabel(pkt.name))}</strong>
-              <span style="font-size:0.65rem; color:var(--income); margin-left:4px;">(잔액:${remain.toLocaleString()})</span>
+              <span style="font-size:0.65rem; color:var(--income); margin-left:4px;">(잔액:${acc.remain.toLocaleString()})</span>
             </div>
             <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
               <input type="text" class="split-modal-input input-base" data-type="pocket" data-id="${pkt.id}" value="${preAmt}" placeholder="0" inputmode="numeric" style="width:85px; padding:4px; font-size:0.75rem; text-align:right;" />
@@ -2223,6 +2269,7 @@
           selectedCard = cItem;
           currentSelectedPocketId = null;
           appliedSplits = null;
+          editingIncomeFrom = null;
           safeStorage.setItem('money_last_card', cItem);
           selectedCardLabel.innerText = cItem;
           document.getElementById('cardDropdown').classList.add('hidden');
@@ -2231,7 +2278,8 @@
       });
 
       const curPrefix = (selectedDateStr || getTodayYMD()).substring(0, 7);
-      const activePockets = pockets.filter(pkt => !pkt.deletedAfterMonth || pkt.deletedAfterMonth > curPrefix);
+      // 선택된 날짜의 달(curPrefix)에 속한 독립 주머니 중 잔액이 남은 주머니만 노출
+      const activePockets = pockets.filter(pkt => pkt.monthKey === curPrefix && getPocketAccounting(pkt).remain > 0);
 
       if (activePockets.length > 0) {
         const divider = document.createElement('div');
@@ -2240,13 +2288,13 @@
         cardListBox.appendChild(divider);
 
         activePockets.forEach(pkt => {
-          const remain = getPocketBalanceAtMonth(pkt, curPrefix);
+          const acc = getPocketAccounting(pkt);
           const item = document.createElement('div');
           item.className = 'dropdown-item';
           const cleanPktName = cleanRouteLabel(pkt.name);
           item.innerHTML = `
             <span style="font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; max-width:130px;">${escapeHtml(cleanPktName)}</span>
-            <span style="font-size:0.68rem; color:var(--income); font-weight:700; flex-shrink:0;">잔액: ${remain.toLocaleString()}원</span>
+            <span style="font-size:0.68rem; color:var(--income); font-weight:700; flex-shrink:0;">잔액: ${acc.remain.toLocaleString()}원</span>
           `;
           item.addEventListener('click', () => {
             selectedCard = cleanPktName;
@@ -2298,6 +2346,7 @@
         document.getElementById('amountInput').focus();
         return;
       }
+      restoreDefaultSplitConfirmHandler();
       renderSplitModalInputs();
       document.getElementById('splitModal').classList.remove('hidden');
     }
@@ -2325,7 +2374,7 @@
             const pid = Number(inp.dataset.id);
             const pkt = pockets.find(p => p.id === pid);
             sumInput += val;
-            tempSplits.push({ type: 'pocket', id: pid, name: pkt ? cleanRouteLabel(pkt.name) : '이동금', amount: val });
+            tempSplits.push({ type: 'pocket', id: pid, name: pkt ? cleanRouteLabel(pkt.name) : '이동금', amount: val, monthKey: pkt ? pkt.monthKey : '' });
           } else {
             const cName = inp.dataset.cardName;
             sumInput += val;
@@ -2351,7 +2400,7 @@
       splitModalInputsContainer.innerHTML = '';
 
       const curPrefix = (selectedDateStr || getTodayYMD()).substring(0, 7);
-      const activePockets = pockets.filter(pkt => !pkt.deletedAfterMonth || pkt.deletedAfterMonth > curPrefix);
+      const activePockets = pockets.filter(pkt => pkt.monthKey === curPrefix && getPocketAccounting(pkt).remain > 0);
 
       if (activePockets.length > 0) {
         const pHeader = document.createElement('div');
@@ -2365,14 +2414,14 @@
             const f = appliedSplits.find(s => s.type === 'pocket' && s.id === pkt.id);
             if (f) preAmt = formatNumberWithCommas(f.amount);
           }
-          const remain = getPocketBalanceAtMonth(pkt, curPrefix);
+          const acc = getPocketAccounting(pkt);
 
           const row = document.createElement('div');
           row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.72rem; background:var(--card-bg); padding:5px 8px; border-radius:4px; border:1px solid var(--border);';
           row.innerHTML = `
             <div style="flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
               <strong style="color:var(--text);">${escapeHtml(cleanRouteLabel(pkt.name))}</strong>
-              <span style="font-size:0.65rem; color:var(--income); margin-left:4px;">(잔액:${remain.toLocaleString()})</span>
+              <span style="font-size:0.65rem; color:var(--income); margin-left:4px;">(잔액:${acc.remain.toLocaleString()})</span>
             </div>
             <div style="display:flex; align-items:center; gap:2px; flex-shrink:0;">
               <input type="text" class="split-modal-input input-base" data-type="pocket" data-id="${pkt.id}" value="${preAmt}" placeholder="0" inputmode="numeric" style="width:85px; padding:4px; font-size:0.72rem; text-align:right;" />
@@ -2593,6 +2642,7 @@
       currentSelectedPocketId = null;
       appliedSplits = null;
       incomeSplitDetails = null;
+      editingIncomeFrom = null;
 
       document.getElementById('catDropdown').classList.add('hidden');
       document.getElementById('cardDropdown').classList.add('hidden');
@@ -2609,6 +2659,7 @@
       currentSelectedPocketId = null;
       appliedSplits = null;
       incomeSplitDetails = null;
+      editingIncomeFrom = null;
       document.getElementById('btnOpenForm').classList.add('hidden');
       document.getElementById('formSection').classList.remove('hidden');
       document.getElementById('btnSaveTx').innerText = '저장';
@@ -2616,6 +2667,7 @@
       document.getElementById('amountInput').value = '';
       document.getElementById('memoInput').value = '';
       setFormMode('expense');
+      updateCardUI();
       document.getElementById('amountInput').focus();
     });
 
@@ -2626,7 +2678,12 @@
       editingTxId = id;
       currentSelectedPocketId = target.pocketId || null;
       appliedSplits = target.splitDetails || null;
-      incomeSplitDetails = target.incomeSplitDetails || null;
+      incomeSplitDetails = target.incomeSplitDetails ? target.incomeSplitDetails.map(s => ({ ...s })) : null;
+
+      editingIncomeFrom = null;
+      if (target.type === 'income' && target.incomeSplitDetails) {
+        editingIncomeFrom = target.incomeFrom || null;
+      }
       
       document.getElementById('btnOpenForm').classList.add('hidden');
       document.getElementById('formSection').classList.remove('hidden');
@@ -2641,11 +2698,13 @@
         document.getElementById('selectedCatLabel').innerText = target.category;
       }
       
-      if (target.card) {
+      if (target.type === 'income' && target.incomeSplitDetails) {
+        document.getElementById('selectedCardLabel').innerText = '수입 분할 충전';
+      } else if (target.pocketId === 'CUSTOM_SPLIT') {
+        document.getElementById('selectedCardLabel').innerText = '복합 분할 결제';
+      } else if (target.card) {
         selectedCard = cleanRouteLabel(target.card);
         document.getElementById('selectedCardLabel').innerText = selectedCard;
-      } else if (target.type === 'income' && target.incomeSplitDetails) {
-        document.getElementById('selectedCardLabel').innerText = '수입 분할 충전';
       }
 
       document.getElementById('btnSaveTx').innerText = '수정 완료';
@@ -2656,7 +2715,6 @@
       document.getElementById('dayModal').classList.add('hidden');
     });
 
-    // [핵심] 수입 분할 충전 시 트랜잭션 ID와 연결된 히스토리 생성
     document.getElementById('btnSaveTx').addEventListener('click', () => {
       const amount = parseRawNumber(document.getElementById('amountInput').value);
       const memo = document.getElementById('memoInput').value.trim() || (currentType === 'expense' ? '지출' : '수입');
@@ -2668,59 +2726,31 @@
         return;
       }
 
-      // 수정 모드인 경우: 이전 기록이 수입 충전이었으면 기존 주머니 히스토리 청소
-      if (editingTxId !== null) {
-        const oldTx = transactions.find(t => t.id === editingTxId);
-        if (oldTx && oldTx.type === 'income' && oldTx.incomeSplitDetails) {
-          pockets.forEach(pkt => {
-            if (pkt.history) {
-              pkt.history = pkt.history.filter(h => h.txId !== editingTxId);
-            }
-          });
+      const hasIncomeSplit = currentType === 'income' && incomeSplitDetails && incomeSplitDetails.length > 0;
+
+      if (hasIncomeSplit) {
+        const splitSum = incomeSplitDetails.reduce((acc, s) => acc + s.amount, 0);
+        if (splitSum !== amount) {
+          alert(`카드별 배분 금액 합계(${splitSum.toLocaleString()}원)가 수입 금액(${amount.toLocaleString()}원)과 다릅니다. '수입 쪼개 담기'에서 다시 배분해주세요.`);
+          return;
         }
       }
 
       const txId = editingTxId !== null ? editingTxId : Date.now();
+      const monthKey = selectedDateStr.substring(0, 7);
+
       let finalIncomeSplits = null;
+      let incomeFrom = null;
 
-      if (currentType === 'income') {
-        if (incomeSplitDetails && incomeSplitDetails.length > 0) {
-          card = '수입 분할 충전';
-          finalIncomeSplits = incomeSplitDetails;
-
-          incomeSplitDetails.forEach(sd => {
-            const fromCardName = selectedCard || '용돈출처';
-            const toCardName = sd.cardName;
-            const routeName = `[${fromCardName}➔${toCardName}]`;
-
-            const newHistoryEntry = {
-              id: 'h_' + Date.now() + '_' + Math.floor(Math.random()*1000),
-              txId: txId, // 트랜잭션과 직접 연결
-              date: selectedDateStr,
-              amount: sd.amount
-            };
-
-            let existingPocket = pockets.find(p => p.fromCard === fromCardName && p.toCard === toCardName);
-            if (existingPocket) {
-              existingPocket.totalAmount += sd.amount;
-              if (!existingPocket.history) existingPocket.history = [];
-              existingPocket.history.push(newHistoryEntry);
-              delete existingPocket.deletedAfterMonth;
-            } else {
-              pockets.unshift({
-                id: Date.now() + Math.floor(Math.random()*100),
-                name: routeName,
-                fromCard: fromCardName,
-                toCard: toCardName,
-                totalAmount: sd.amount,
-                usedAmount: 0,
-                history: [newHistoryEntry]
-              });
-            }
-          });
-          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-        }
+      if (hasIncomeSplit) {
+        card = '수입 분할 충전';
+        finalIncomeSplits = incomeSplitDetails.map(s => ({ ...s }));
+        incomeFrom = editingIncomeFrom || resolveIncomeSource();
+        // 등록되는 날짜의 달(monthKey)에 종속된 독립 주머니 생성
+        finalIncomeSplits.forEach(s => ensureMonthlyRoute(incomeFrom, s.cardName, monthKey));
       }
+
+      savePockets();
 
       if (editingTxId !== null) {
         transactions = transactions.map(t => {
@@ -2734,7 +2764,8 @@
               memo: memo,
               pocketId: currentType === 'expense' ? currentSelectedPocketId : null,
               splitDetails: currentType === 'expense' ? appliedSplits : null,
-              incomeSplitDetails: finalIncomeSplits
+              incomeSplitDetails: finalIncomeSplits,
+              incomeFrom: incomeFrom
             };
           }
           return t;
@@ -2750,16 +2781,23 @@
           memo: memo,
           pocketId: currentType === 'expense' ? currentSelectedPocketId : null,
           splitDetails: currentType === 'expense' ? appliedSplits : null,
-          incomeSplitDetails: finalIncomeSplits
+          incomeSplitDetails: finalIncomeSplits,
+          incomeFrom: incomeFrom
         });
       }
 
-      safeStorage.setItem('money_tx_list', JSON.stringify(transactions));
+      saveTransactions();
+
+      if (hasIncomeSplit) {
+        const [yy, mm] = selectedDateStr.split('-').map(Number);
+        pocketViewDate = new Date(yy, mm - 1, 1);
+      }
       
       editingTxId = null;
       currentSelectedPocketId = null;
       appliedSplits = null;
       incomeSplitDetails = null;
+      editingIncomeFrom = null;
       document.getElementById('amountInput').value = '';
       document.getElementById('memoInput').value = '';
       document.getElementById('formSection').classList.add('hidden');
@@ -2821,39 +2859,11 @@
       });
     }
 
-    // [핵심] 달력 내역 삭제 시, 주머니 충전 기록까지 한 번에 완전히 청소
     window.deleteTx = function(id, e) {
       e.stopPropagation();
-      const target = transactions.find(t => t.id === id);
-      if (target) {
-        // 수입 분할 충전 내역 삭제 시: 주머니의 충전 히스토리도 함께 즉시 제거
-        if (target.type === 'income' && target.incomeSplitDetails) {
-          pockets.forEach(pkt => {
-            if (pkt.history) {
-              pkt.history = pkt.history.filter(h => h.txId !== id);
-            }
-          });
-          safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-        }
-
-        // 지출 분할 결제 삭제 시 포켓 사용량 차감 복원
-        if (target.type === 'expense') {
-          if (target.splitDetails) {
-            target.splitDetails.forEach(sd => {
-              if (sd.type === 'pocket') {
-                pockets = pockets.map(p => p.id === sd.id ? { ...p, usedAmount: Math.max(0, p.usedAmount - sd.amount) } : p);
-              }
-            });
-            safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-          } else if (target.pocketId && target.pocketId !== 'CUSTOM_SPLIT') {
-            pockets = pockets.map(p => p.id === target.pocketId ? { ...p, usedAmount: Math.max(0, p.usedAmount - target.amount) } : p);
-            safeStorage.setItem('money_pockets', JSON.stringify(pockets));
-          }
-        }
-      }
 
       transactions = transactions.filter(t => t.id !== id);
-      safeStorage.setItem('money_tx_list', JSON.stringify(transactions));
+      saveTransactions();
       
       if (editingTxId === id) {
         editingTxId = null;
@@ -3092,6 +3102,8 @@
           if (data.cards) cards = data.cards;
           if (data.hiddenCards) hiddenCards = data.hiddenCards;
 
+          migrateLegacyData();
+
           safeStorage.setItem('money_tx_list', JSON.stringify(transactions));
           safeStorage.setItem('money_fixed_list', JSON.stringify(fixedList));
           safeStorage.setItem('money_pockets', JSON.stringify(pockets));
@@ -3138,6 +3150,8 @@
     attachCommaFormatting(document.getElementById('pocketAmount'));
     attachCommaFormatting(document.getElementById('inputTargetBudget'));
     attachCommaFormatting(document.getElementById('editHistAmount'));
+
+    migrateLegacyData();
 
     updateCategoryUI();
     updateCardUI();
