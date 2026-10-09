@@ -622,6 +622,19 @@
       align-items: center;
     }
     .card-filter-item:hover { background: #f1f5f9; }
+
+    /* [추가] 검색/필터 바 */
+    .search-bar { display: flex; gap: 6px; margin-bottom: 8px; }
+    .search-bar .input-base { height: 38px; }
+    .search-result-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+    .search-result-count { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; }
+    .search-tx-date { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; }
+
+    /* [추가] 2번 탭 카드 박스 / 3번 탭 카드별 사용 */
+    .stat-card { margin-top: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .stat-card h3 { font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .card-usage-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 8px 2px; border-bottom: 1px dashed var(--border); }
+    .card-usage-row strong { color: var(--expense); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -638,6 +651,12 @@
       
       <!-- 1번 탭: 달력 -->
       <section id="calendarTab" class="tab-view active">
+        <div class="search-bar">
+          <input type="text" id="searchInput" class="input-base" style="flex:1;" placeholder="메모, 사용처 검색" />
+          <select id="searchFilter" class="input-base" style="width:110px; flex-shrink:0;"></select>
+        </div>
+        <div id="searchResultBox" class="search-result-box hidden"></div>
+
         <div class="cal-header">
           <button class="cal-nav-btn" id="prevBtn">&lt;</button>
           <h2 id="monthTitle">-</h2>
@@ -703,6 +722,31 @@
             지출 데이터를 등록하면 맞춤 절약 조언이 제공됩니다.
           </div>
         </div>
+
+        <!-- [이전] 카테고리 관련 기능 -->
+        <div class="stat-card">
+          <h3>카테고리 관리</h3>
+          <div class="tag-container" id="manageCatList"></div>
+          <div style="display:flex; gap:5px;">
+            <input type="text" id="addCatInput" class="input-base" placeholder="새 카테고리 이름" style="flex:1;" />
+            <button type="button" id="btnAddCatItem" class="btn-action-primary">추가</button>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>카테고리별 지출 비중</h3>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div id="categoryPieChart" style="width:95px; height:95px; border-radius:50%; background:#e2e8f0; position:relative; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 17px white;">
+              <span id="pieCenterText" style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-align:center;">지출 없음</span>
+            </div>
+            <div id="categoryLegendList" style="width:100%; display:flex; flex-direction:column; gap:2px; font-size:0.73rem;"></div>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>카테고리별 목표 예산 관리</h3>
+          <div id="categorySpendList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
       </section>
 
       <!-- 3번 탭: 관리 -->
@@ -710,7 +754,7 @@
         <div class="manage-nav-bar">
           <div class="manage-sub-card active" onclick="switchManagePage('pageFixed', this)">고정지출</div>
           <div class="manage-sub-card" onclick="switchManagePage('pageCard', this)">카드</div>
-          <div class="manage-sub-card" onclick="switchManagePage('pageCategory', this)">카테고리</div>
+          <div class="manage-sub-card" onclick="switchManagePage('pageCardUsage', this)">카드별 사용</div>
         </div>
 
         <div class="manage-view-container">
@@ -811,35 +855,17 @@
             </div>
           </div>
 
-          <!-- 상세 3: 카테고리 -->
-          <div class="manage-page" id="pageCategory">
+          <!-- 상세 3: 월별 카드별 사용금액 -->
+          <div class="manage-page" id="pageCardUsage">
             <div class="page-header">
-              <h3>카테고리 목록</h3>
-            </div>
-
-            <div class="tag-container" id="manageCatList"></div>
-
-            <div style="display:flex; gap:5px;">
-              <input type="text" id="addCatInput" class="input-base" placeholder="새 카테고리 이름" style="flex:1;" />
-              <button type="button" id="btnAddCatItem" class="btn-action-primary">추가</button>
-            </div>
-
-            <div class="pocket-section-title" style="margin-top:14px;">
-              <span>이번 달 카테고리별 지출 비중</span>
-            </div>
-
-            <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:8px; padding:10px; display:flex; flex-direction:column; align-items:center; gap:8px;">
-              <div id="categoryPieChart" style="width:95px; height:95px; border-radius:50%; background:#e2e8f0; position:relative; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 17px white;">
-                <span id="pieCenterText" style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-align:center;">지출 없음</span>
+              <h3>월별 카드별 사용금액</h3>
+              <div style="display:flex; align-items:center; gap:5px;">
+                <button type="button" class="week-nav-btn" id="btnPrevUsageMonth">◀</button>
+                <span id="cardUsageMonthTitle" style="font-size:0.75rem; font-weight:700; color:var(--primary);">-</span>
+                <button type="button" class="week-nav-btn" id="btnNextUsageMonth">▶</button>
               </div>
-              <div id="categoryLegendList" style="width:100%; display:flex; flex-direction:column; gap:2px; font-size:0.73rem;"></div>
             </div>
-
-            <div class="pocket-section-title" style="margin-top:12px;">
-              <span>카테고리별 목표 예산 관리</span>
-            </div>
-
-            <div id="categorySpendList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;"></div>
+            <div id="cardUsageList"></div>
           </div>
 
         </div>
@@ -859,6 +885,10 @@
             </button>
             <input type="file" id="importFileInput" accept=".json" class="hidden" />
           </div>
+
+          <button type="button" id="btnExportCsv" class="btn-action-primary" style="width:100%;">
+            CSV 내보내기 (Excel 호환)
+          </button>
 
           <div style="padding-top:10px; border-top:1px dashed var(--border);">
             <button type="button" id="btnClearAll" style="width:100%; background:var(--expense); color:white; border:none; padding:9px 14px; border-radius:6px; font-weight:700; cursor:pointer; font-size:0.8rem;">
@@ -1416,6 +1446,8 @@
       currentWeekIndex = todayWeekIdx !== -1 ? todayWeekIdx : 0;
 
       calculateSummaries();
+      renderSearchFilterOptions();
+      runSearch();
     }
 
     function calculateSummaries() {
@@ -1530,19 +1562,7 @@
       renderFixedCardUI();
       renderPocketList();
 
-      const manageCatList = document.getElementById('manageCatList');
-      manageCatList.innerHTML = '';
-      categories.forEach(cat => {
-        const tag = document.createElement('div');
-        tag.className = 'rounded-tag';
-        tag.innerHTML = `
-          <span>${escapeHtml(cat)}</span>
-          <button type="button" onclick="deleteCatFromManage('${escapeHtml(cat)}')">✕</button>
-        `;
-        manageCatList.appendChild(tag);
-      });
-
-      renderCategorySpendAndBudget();
+      renderCardUsage();
     }
 
     function renderCardTagList() {
@@ -2175,7 +2195,7 @@
         safeStorage.setItem('money_categories', JSON.stringify(categories));
       }
       document.getElementById('addCatInput').value = '';
-      renderManageTab();
+      renderStats();
       updateCategoryUI();
     });
 
@@ -2187,7 +2207,7 @@
       categories = categories.filter(c => c !== cat);
       safeStorage.setItem('money_categories', JSON.stringify(categories));
       if (selectedCategory === cat) selectedCategory = categories[0];
-      renderManageTab();
+      renderStats();
       updateCategoryUI();
     };
 
@@ -2888,14 +2908,14 @@
       legendList.innerHTML = '';
       catListEl.innerHTML = '';
 
-      const now = new Date();
-      const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      // [변경] 달력에서 탐색 중인 currentDate 기준 + 가상 고정지출 포함
+      const prefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       let totalExpense = 0;
       let catExpenses = {};
 
       categories.forEach(c => catExpenses[c] = 0);
 
-      transactions.forEach(t => {
+      getMonthCombinedTransactions(prefix).forEach(t => {
         if (t.type === 'expense' && t.date && t.date.startsWith(prefix)) {
           totalExpense += t.amount;
           const cat = t.category || '기타';
@@ -2982,13 +3002,17 @@
     };
 
     function renderStats() {
-      const now = new Date();
-      const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      // [추가] 카테고리 태그 / 차트 / 카테고리 예산 (2번 탭으로 이전)
+      renderCategoryTags();
+      renderCategorySpendAndBudget();
+
+      // [변경] 달력에서 탐색 중인 currentDate 기준 + 가상 고정지출 포함
+      const prefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       
       let totalExpense = 0;
       let catExpenses = {};
 
-      transactions.forEach(t => {
+      getMonthCombinedTransactions(prefix).forEach(t => {
         if (t.type === 'expense' && t.date && t.date.startsWith(prefix)) {
           totalExpense += t.amount;
           const cat = t.category || '기타';
@@ -3143,6 +3167,183 @@
         renderStats();
         alert('모든 데이터가 초기화되었습니다.');
       }
+    });
+
+    // ===== [추가 1] 달력 탭 검색 / 필터 =====
+    function renderSearchFilterOptions() {
+      const sel = document.getElementById('searchFilter');
+      const prev = sel.value || 'all';
+      const visibleCards = cards.filter(c => !hiddenCards.includes(c));
+      const html =
+        '<option value="all">전체</option>' +
+        '<optgroup label="카테고리">' + categories.map(c => `<option value="cat:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') + '</optgroup>' +
+        '<optgroup label="카드">' + visibleCards.map(c => `<option value="card:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') + '</optgroup>';
+      if (sel.dataset.sig !== html) {
+        sel.innerHTML = html;
+        sel.dataset.sig = html;
+        sel.value = prev;
+        if (sel.value !== prev) sel.value = 'all';
+      }
+    }
+
+    function txCardNames(t) {
+      const names = [];
+      const push = label => {
+        const clean = cleanRouteLabel(label || '');
+        const m = clean.match(/^\[(.*?)➔(.*?)\]$/);
+        if (m) names.push(m[1].trim(), m[2].trim());
+        else if (clean) names.push(clean);
+      };
+      push(t.card);
+      (t.splitDetails || []).forEach(sd => push(sd.name || sd.cardName));
+      (t.incomeSplitDetails || []).forEach(sd => push(sd.cardName));
+      return names;
+    }
+
+    function runSearch() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const f = document.getElementById('searchFilter').value || 'all';
+      const active = q !== '' || f !== 'all';
+      const box = document.getElementById('searchResultBox');
+
+      document.querySelectorAll('#calendarTab .cal-header, #calendarTab .calendar-container, #calendarTab .summary-card')
+        .forEach(el => el.classList.toggle('hidden', active));
+      box.classList.toggle('hidden', !active);
+      if (!active) return;
+
+      const prefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      const fixedVirtual = getMonthCombinedTransactions(prefix).filter(t => t.isVirtualFixed);
+
+      const list = transactions.concat(fixedVirtual).filter(t => {
+        if (q && !String(t.memo || '').toLowerCase().includes(q)) return false;
+        if (f.startsWith('cat:')) return t.type === 'expense' && t.category === f.substring(4);
+        if (f.startsWith('card:')) return txCardNames(t).includes(f.substring(5));
+        return true;
+      }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      if (list.length === 0) {
+        box.innerHTML = '<p style="font-size:0.73rem; color:#94a3b8; text-align:center; padding:14px 0;">조건에 맞는 내역이 없습니다.</p>';
+        return;
+      }
+
+      box.innerHTML = `<div class="search-result-count">검색 결과 ${list.length}건</div>`;
+      list.forEach(t => {
+        const isExp = t.type === 'expense';
+        const row = document.createElement('div');
+        row.className = 'tx-item';
+        row.innerHTML = `
+          <div class="tx-item-left">
+            <span class="search-tx-date">${escapeHtml(t.date)}</span>
+            <span class="tx-memo">${escapeHtml(t.memo)}</span>
+            <div class="tx-tags"><span class="tx-tag">${escapeHtml(cleanRouteLabel(t.card || '기타'))}</span></div>
+          </div>
+          <div class="tx-item-right">
+            <span class="tx-val ${isExp ? 'exp' : 'inc'}">${isExp ? '-' : '+'}${t.amount.toLocaleString()}원</span>
+          </div>`;
+        row.addEventListener('click', () => openModal(t.date));
+        box.appendChild(row);
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', runSearch);
+    document.getElementById('searchFilter').addEventListener('change', runSearch);
+
+    // ===== [추가 2] 카테고리 태그 (2번 탭) =====
+    function renderCategoryTags() {
+      const manageCatList = document.getElementById('manageCatList');
+      manageCatList.innerHTML = '';
+      categories.forEach(cat => {
+        const tag = document.createElement('div');
+        tag.className = 'rounded-tag';
+        tag.innerHTML = `
+          <span>${escapeHtml(cat)}</span>
+          <button type="button" onclick="deleteCatFromManage('${escapeHtml(cat)}')">✕</button>
+        `;
+        manageCatList.appendChild(tag);
+      });
+    }
+
+    // ===== [추가 3] 월별 카드별 사용금액 (도착/뒷카드 기준) =====
+    let cardUsageViewDate = new Date();
+    cardUsageViewDate.setDate(1);
+
+    function backCardFromLabel(label) {
+      const m = cleanRouteLabel(label || '').match(/^\[(.*?)➔(.*?)\]$/);
+      return m ? m[2].trim() : null;
+    }
+
+    function resolveBackCardByPocketId(pid, fallbackLabel) {
+      const pkt = pockets.find(p => Number(p.id) === Number(pid));
+      if (pkt) return pkt.toCard;
+      return backCardFromLabel(fallbackLabel) || cleanRouteLabel(fallbackLabel) || '기타';
+    }
+
+    function renderCardUsage() {
+      const y = cardUsageViewDate.getFullYear();
+      const m = cardUsageViewDate.getMonth() + 1;
+      const prefix = `${y}-${String(m).padStart(2, '0')}`;
+      document.getElementById('cardUsageMonthTitle').innerText = `${y}.${String(m).padStart(2, '0')}`;
+
+      const usage = {};
+      const add = (name, amt) => { const k = name || '기타'; usage[k] = (usage[k] || 0) + amt; };
+
+      getMonthCombinedTransactions(prefix).forEach(t => {
+        if (t.type !== 'expense') return;
+        if (t.splitDetails && t.splitDetails.length > 0) {
+          t.splitDetails.forEach(sd => {
+            if (sd.type === 'pocket') add(resolveBackCardByPocketId(sd.id, sd.name), sd.amount);
+            else add(sd.name || sd.cardName, sd.amount);
+          });
+        } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
+          add(resolveBackCardByPocketId(t.pocketId, t.card), t.amount);
+        } else {
+          add(backCardFromLabel(t.card) || cleanRouteLabel(t.card), t.amount);
+        }
+      });
+
+      const list = document.getElementById('cardUsageList');
+      const names = Object.keys(usage).filter(k => usage[k] > 0).sort((a, b) => usage[b] - usage[a]);
+      if (names.length === 0) {
+        list.innerHTML = '<p style="font-size:0.75rem; color:#94a3b8; text-align:center; padding:14px 0;">해당 월 지출 내역이 없습니다.</p>';
+        return;
+      }
+      list.innerHTML = names.map(n =>
+        `<div class="card-usage-row"><span>${escapeHtml(n)}</span><strong>${usage[n].toLocaleString()}원</strong></div>`
+      ).join('');
+    }
+
+    document.getElementById('btnPrevUsageMonth').addEventListener('click', () => {
+      cardUsageViewDate.setMonth(cardUsageViewDate.getMonth() - 1);
+      renderCardUsage();
+    });
+    document.getElementById('btnNextUsageMonth').addEventListener('click', () => {
+      cardUsageViewDate.setMonth(cardUsageViewDate.getMonth() + 1);
+      renderCardUsage();
+    });
+
+    // ===== [추가 5] CSV 내보내기 (UTF-8 BOM) =====
+    document.getElementById('btnExportCsv').addEventListener('click', () => {
+      const esc = v => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
+      const rows = [['일자', '유형', '카테고리', '결제수단', '내용/메모', '금액']];
+
+      [...transactions].sort((a, b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
+        let cardText = cleanRouteLabel(t.card || '');
+        if (t.splitDetails && t.splitDetails.length > 0) {
+          cardText += ' (' + t.splitDetails.map(sd => `${cleanRouteLabel(sd.name || sd.cardName)}:${sd.amount}`).join(' | ') + ')';
+        } else if (t.incomeSplitDetails && t.incomeSplitDetails.length > 0) {
+          cardText += ' (' + t.incomeSplitDetails.map(sd => `${sd.cardName}:${sd.amount}`).join(' | ') + ')';
+        }
+        rows.push([t.date, t.type === 'expense' ? '지출' : '수입', t.category || '', cardText, t.memo || '', t.amount]);
+      });
+
+      const csv = '\uFEFF' + rows.map(r => r.map((v, i) => i === 5 ? v : esc(v)).join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `가계부_내역_${getTodayYMD()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     });
 
     attachCommaFormatting(document.getElementById('amountInput'));
