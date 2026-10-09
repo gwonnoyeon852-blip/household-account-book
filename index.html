@@ -3267,15 +3267,19 @@
     let cardUsageViewDate = new Date();
     cardUsageViewDate.setDate(1);
 
-    function backCardFromLabel(label) {
-      const m = cleanRouteLabel(label || '').match(/^\[(.*?)➔(.*?)\]$/);
-      return m ? m[2].trim() : null;
+    // 어떤 라벨이든 "[A➔B]"면 B, 일반 카드명이면 그대로 → 결국 실제 결제된 카드 하나로 통일
+    function normalizeUsageCard(name) {
+      const clean = cleanRouteLabel(String(name || '')).trim();
+      const m = clean.match(/\[(.*?)➔(.*?)\]/);
+      return (m ? m[2] : clean).trim();
     }
 
-    function resolveBackCardByPocketId(pid, fallbackLabel) {
-      const pkt = pockets.find(p => Number(p.id) === Number(pid));
-      if (pkt) return pkt.toCard;
-      return backCardFromLabel(fallbackLabel) || cleanRouteLabel(fallbackLabel) || '기타';
+    function resolveUsageCard(pocketId, label) {
+      if (pocketId && pocketId !== 'CUSTOM_SPLIT') {
+        const pkt = pockets.find(p => Number(p.id) === Number(pocketId));
+        if (pkt) return String(pkt.toCard).trim();
+      }
+      return normalizeUsageCard(label);
     }
 
     function renderCardUsage() {
@@ -3284,20 +3288,23 @@
       const prefix = `${y}-${String(m).padStart(2, '0')}`;
       document.getElementById('cardUsageMonthTitle').innerText = `${y}.${String(m).padStart(2, '0')}`;
 
+      const skipNames = ['', '복합 분할 결제', '수입 분할 충전'];
       const usage = {};
-      const add = (name, amt) => { const k = name || '기타'; usage[k] = (usage[k] || 0) + amt; };
+      const add = (name, amt) => {
+        if (skipNames.includes(name)) return;
+        usage[name] = (usage[name] || 0) + amt;
+      };
 
+      // 지출(expense)만 집계: 수입/이동금 충전 내역은 포함하지 않음
       getMonthCombinedTransactions(prefix).forEach(t => {
         if (t.type !== 'expense') return;
         if (t.splitDetails && t.splitDetails.length > 0) {
           t.splitDetails.forEach(sd => {
-            if (sd.type === 'pocket') add(resolveBackCardByPocketId(sd.id, sd.name), sd.amount);
-            else add(sd.name || sd.cardName, sd.amount);
+            if (sd.type === 'pocket') add(resolveUsageCard(sd.id, sd.name), sd.amount);
+            else add(normalizeUsageCard(sd.name || sd.cardName), sd.amount);
           });
-        } else if (t.pocketId && t.pocketId !== 'CUSTOM_SPLIT') {
-          add(resolveBackCardByPocketId(t.pocketId, t.card), t.amount);
         } else {
-          add(backCardFromLabel(t.card) || cleanRouteLabel(t.card), t.amount);
+          add(resolveUsageCard(t.pocketId, t.card), t.amount);
         }
       });
 
